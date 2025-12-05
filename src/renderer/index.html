@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com;">
+  <title>LocalShare</title>
+  <!-- Terminal/Hacker aesthetic fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles/main.css">
+</head>
+<body class="bg-terminal-deep text-text-primary font-ui antialiased overflow-hidden">
+  <div id="app" class="h-screen flex flex-col">
+    <!-- Title Bar (macOS style but custom) -->
+    <header id="title-bar" class="title-bar">
+      <div class="title-bar-drag-region"></div>
+      <div class="title-bar-content">
+        <div class="flex items-center gap-3">
+          <!-- Spacer for macOS traffic lights (native buttons are used) -->
+          <div class="macos-traffic-light-spacer"></div>
+          <span class="app-title">
+            <span class="text-phosphor">Local</span><span class="text-cyber">Share</span>
+          </span>
+        </div>
+
+        <div class="flex items-center gap-4">
+          <!-- Server status indicator -->
+          <div id="server-status" class="server-status">
+            <span class="status-dot offline"></span>
+            <span class="status-text">Offline</span>
+          </div>
+
+          <!-- Connected users count -->
+          <div id="users-count" class="users-count hidden">
+            <span class="users-icon">&#x25CF;</span>
+            <span class="users-text">0</span>
+          </div>
+
+          <!-- Menu button -->
+          <button id="btn-menu" class="menu-btn" title="Menu">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M3 4h10v1.5H3V4zm0 3.25h10v1.5H3v-1.5zm0 3.25h10V12H3v-1.5z"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Tab Bar -->
+    <div id="tab-bar" class="tab-bar">
+      <div id="tabs-container" class="tabs-container">
+        <!-- Tabs will be dynamically inserted here -->
+      </div>
+      <button id="btn-new-tab" class="new-tab-btn" title="New Tab (Ctrl+T)">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+          <path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Main Editor Area -->
+    <main id="editor-area" class="editor-area">
+      <!-- CodeMirror editor will be mounted here -->
+      <div id="editor-mount" class="editor-mount"></div>
+
+      <!-- Empty state -->
+      <div id="empty-state" class="empty-state">
+        <div class="empty-state-content">
+          <pre class="ascii-art">
+  _____      _
+ | ____|  __| | ___  _ __
+ |  _|   / _` |/ _ \| '__|
+ | |___ | (_| | (_) | |
+ |_____(_)__,_|\___/|_|
+          </pre>
+          <p class="empty-title">No file open</p>
+          <p class="empty-hint">Press <kbd>Ctrl</kbd>+<kbd>T</kbd> to create a new file</p>
+          <p class="empty-hint">or <kbd>Ctrl</kbd>+<kbd>O</kbd> to open a project</p>
+        </div>
+      </div>
+    </main>
+
+    <!-- Status Bar -->
+    <footer id="status-bar" class="status-bar">
+      <div class="status-left">
+        <span id="language-indicator" class="status-item language-badge">
+          Plain Text
+        </span>
+        <span class="status-separator">|</span>
+        <span id="cursor-position" class="status-item">
+          Ln 1, Col 1
+        </span>
+      </div>
+      <div class="status-center">
+        <span id="save-indicator" class="status-item save-indicator hidden">
+          <span class="save-icon"></span>
+          <span class="save-text">Saved</span>
+        </span>
+      </div>
+      <div class="status-right">
+        <span id="encryption-status" class="status-item encryption-status hidden" title="Connection security">
+          <svg id="lock-icon" width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+            <path d="M8 4V3a3 3 0 00-6 0v1H1v5h8V4H8zM3 3a2 2 0 114 0v1H3V3z"/>
+          </svg>
+          <span id="encryption-text">Secure</span>
+        </span>
+        <button id="btn-focus-all" class="status-btn focus-btn hidden" title="Focus all guests on current tab">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+            <path d="M6 1L1 6l5 5 5-5-5-5zm0 2.5L8.5 6 6 8.5 3.5 6 6 3.5z"/>
+          </svg>
+          <span>Focus All</span>
+        </button>
+        <button id="btn-share" class="status-btn share-btn" title="Share session">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+            <path d="M9 1.5a1.5 1.5 0 11-1.28 2.27L4.5 5.39a1.5 1.5 0 010 1.22l3.22 1.62A1.5 1.5 0 119 9.5a1.5 1.5 0 01-1.28-.77L4.5 7.11a1.5 1.5 0 110-2.22l3.22-1.62A1.5 1.5 0 019 1.5z"/>
+          </svg>
+          <span>Share</span>
+        </button>
+        <span id="connection-url" class="status-item connection-url hidden"></span>
+      </div>
+    </footer>
+
+    <!-- Credential Modal -->
+    <div id="credential-modal" class="modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title">Share Session</h2>
+          <button id="btn-close-modal" class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="connection-info">
+            <label>Connection URL</label>
+            <div class="url-display">
+              <code id="modal-url">Loading...</code>
+              <button id="btn-copy-url" class="copy-btn" title="Copy URL">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+                  <path d="M4 4v8h8V4H4zm0-1h8a1 1 0 011 1v8a1 1 0 01-1 1H4a1 1 0 01-1-1V4a1 1 0 011-1z"/>
+                  <path d="M2 2v8h1V2h7v1h1V2a1 1 0 00-1-1H2a1 1 0 00-1 1v8a1 1 0 001 1h1v-1H2z"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="credentials-section">
+            <div class="section-header">
+              <h3>Guest Credentials</h3>
+              <span class="credential-count"><span id="cred-count">0</span>/10</span>
+            </div>
+
+            <div class="new-credential">
+              <input type="text" id="new-username" placeholder="Enter username" maxlength="20" pattern="[a-zA-Z0-9_-]+">
+              <button id="btn-create-cred" class="create-cred-btn">Generate PIN</button>
+            </div>
+
+            <div id="credentials-list" class="credentials-list">
+              <!-- Credentials will be listed here -->
+              <p class="no-credentials">No credentials created yet</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,625 @@
+/**
+ * LocalShare Main Styles
+ * Terminal/Hacker aesthetic with phosphor green accents
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================
+   CSS Custom Properties
+   ============================================ */
+:root {
+  /* Background hierarchy */
+  --bg-deep: #0a0e14;
+  --bg-base: #0d1117;
+  --bg-surface: #161b22;
+  --bg-elevated: #1c2128;
+  --bg-hover: #262c36;
+
+  /* Phosphor green (primary) */
+  --phosphor: #00ff9f;
+  --phosphor-dim: #004d40;
+  --phosphor-muted: #00796b;
+  --phosphor-bright: #69ffcc;
+  --phosphor-glow: rgba(0, 255, 159, 0.15);
+
+  /* Cyber cyan (secondary) */
+  --cyber: #00d9ff;
+  --cyber-dim: #0e4f5c;
+  --cyber-muted: #6fc3df;
+  --cyber-glow: rgba(0, 217, 255, 0.15);
+
+  /* Status colors */
+  --status-error: #ff0055;
+  --status-error-dim: #660022;
+  --status-warning: #ffb800;
+  --status-success: #00ff9f;
+
+  /* Text hierarchy */
+  --text-primary: #e6edf3;
+  --text-secondary: #8b949e;
+  --text-muted: #484f58;
+  --text-disabled: #30363d;
+
+  /* Borders */
+  --border-subtle: #21262d;
+  --border: #30363d;
+  --border-emphasis: #484f58;
+
+  /* Animation */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.2s ease;
+}
+
+/* ============================================
+   Base Styles
+   ============================================ */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background: var(--phosphor);
+  color: var(--bg-deep);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-base);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-emphasis);
+}
+
+::-webkit-scrollbar-corner {
+  background: var(--bg-base);
+}
+
+/* ============================================
+   Title Bar
+   ============================================ */
+.title-bar {
+  @apply relative flex items-center h-10 bg-terminal-surface border-b border-border-subtle;
+  -webkit-app-region: drag;
+}
+
+.title-bar-drag-region {
+  @apply absolute inset-0;
+  -webkit-app-region: drag;
+}
+
+.title-bar-content {
+  @apply relative flex items-center justify-between w-full px-4 z-10;
+  -webkit-app-region: no-drag;
+}
+
+.window-controls {
+  @apply flex items-center gap-2;
+  -webkit-app-region: no-drag;
+}
+
+/* Spacer for native macOS traffic light buttons */
+.macos-traffic-light-spacer {
+  width: 70px; /* Approximate width of traffic lights + padding */
+}
+
+.window-btn {
+  @apply w-3 h-3 rounded-full transition-all duration-150;
+  -webkit-app-region: no-drag;
+}
+
+.window-btn.close {
+  @apply bg-red-500 hover:bg-red-400;
+}
+
+.window-btn.minimize {
+  @apply bg-yellow-500 hover:bg-yellow-400;
+}
+
+.window-btn.maximize {
+  @apply bg-green-500 hover:bg-green-400;
+}
+
+.title-separator {
+  @apply w-px h-4 bg-border-subtle mx-1;
+}
+
+.app-title {
+  @apply text-ui font-bold tracking-wider;
+}
+
+.server-status {
+  @apply flex items-center gap-2 text-ui-sm;
+}
+
+.status-dot {
+  @apply w-2 h-2 rounded-full transition-colors;
+}
+
+.status-dot.online {
+  @apply bg-phosphor shadow-glow-sm;
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.status-dot.offline {
+  @apply bg-text-muted;
+}
+
+.status-text {
+  @apply text-text-secondary;
+}
+
+.users-count {
+  @apply flex items-center gap-1 text-ui-sm text-cyber;
+}
+
+.menu-btn {
+  @apply p-1.5 rounded text-text-secondary hover:text-text-primary hover:bg-terminal-hover transition-colors;
+}
+
+/* ============================================
+   Tab Bar
+   ============================================ */
+.tab-bar {
+  @apply flex items-center h-tab-height bg-terminal-base border-b border-border-subtle;
+}
+
+.tabs-container {
+  @apply flex items-end flex-1 overflow-x-auto;
+  scrollbar-width: none;
+}
+
+.tabs-container::-webkit-scrollbar {
+  display: none;
+}
+
+.tab {
+  @apply relative flex items-center gap-2 h-9 px-4 text-ui cursor-pointer
+         border-r border-border-subtle transition-all duration-150;
+  min-width: 120px;
+  max-width: 200px;
+}
+
+.tab:hover {
+  @apply bg-terminal-hover;
+}
+
+.tab.active {
+  @apply bg-terminal-surface text-phosphor;
+}
+
+.tab.active::after {
+  content: '';
+  @apply absolute bottom-0 left-0 right-0 h-0.5 bg-phosphor;
+  box-shadow: 0 0 8px var(--phosphor-glow);
+}
+
+.tab-name {
+  @apply flex-1 truncate;
+}
+
+.tab-rename-input {
+  @apply bg-terminal-deep border border-phosphor rounded px-1 py-0
+         text-text-primary font-mono text-ui-sm
+         outline-none;
+  min-width: 60px;
+}
+
+.tab-dirty {
+  @apply text-status-warning text-xs;
+}
+
+.tab-close {
+  @apply w-4 h-4 flex items-center justify-center rounded opacity-0
+         hover:bg-terminal-hover text-text-muted hover:text-text-primary transition-all;
+}
+
+.tab:hover .tab-close,
+.tab.active .tab-close {
+  @apply opacity-100;
+}
+
+.new-tab-btn {
+  @apply flex items-center justify-center w-9 h-9 text-text-muted
+         hover:text-phosphor hover:bg-terminal-hover transition-colors;
+}
+
+/* ============================================
+   Editor Area
+   ============================================ */
+.editor-area {
+  @apply relative flex-1 overflow-hidden bg-terminal-deep;
+}
+
+.editor-mount {
+  @apply absolute inset-0;
+}
+
+/* Empty state */
+.empty-state {
+  @apply absolute inset-0 flex items-center justify-center;
+}
+
+.empty-state-content {
+  @apply text-center;
+}
+
+.ascii-art {
+  @apply text-phosphor-dim font-mono text-xs leading-tight mb-6;
+  text-shadow: 0 0 20px var(--phosphor-glow);
+}
+
+.empty-title {
+  @apply text-text-secondary text-lg mb-4;
+}
+
+.empty-hint {
+  @apply text-text-muted text-ui-sm mb-2;
+}
+
+.empty-hint kbd {
+  @apply inline-block px-1.5 py-0.5 bg-terminal-surface border border-border
+         rounded text-text-secondary font-mono text-ui-sm;
+}
+
+/* ============================================
+   Status Bar
+   ============================================ */
+.status-bar {
+  @apply flex items-center justify-between h-status-height px-3
+         bg-terminal-surface border-t border-border-subtle text-ui-sm;
+}
+
+.status-left,
+.status-center,
+.status-right {
+  @apply flex items-center gap-2;
+}
+
+.status-item {
+  @apply text-text-secondary;
+}
+
+.status-separator {
+  @apply text-border;
+}
+
+.language-badge {
+  @apply px-2 py-0.5 bg-terminal-elevated rounded text-cyber text-ui-sm font-medium;
+}
+
+.save-indicator {
+  @apply flex items-center gap-1;
+}
+
+.save-indicator .save-icon {
+  @apply w-2 h-2 rounded-full bg-phosphor;
+  animation: pulse-glow 1s ease-out;
+}
+
+.save-indicator.saving .save-icon {
+  @apply bg-status-warning;
+  animation: blink 0.5s ease-in-out infinite;
+}
+
+.status-btn {
+  @apply flex items-center gap-1.5 px-2 py-1 rounded
+         text-text-secondary hover:text-phosphor hover:bg-terminal-hover
+         transition-colors;
+}
+
+.share-btn {
+  @apply border border-border hover:border-phosphor;
+}
+
+.focus-btn {
+  @apply border border-cyber text-cyber hover:bg-cyber hover:text-terminal-deep;
+}
+
+.connection-url {
+  @apply px-2 py-0.5 bg-terminal-deep rounded font-mono text-phosphor;
+}
+
+.encryption-status {
+  @apply flex items-center gap-1 px-2 py-0.5 rounded text-ui-sm;
+}
+
+.encryption-status.secure {
+  @apply text-phosphor;
+}
+
+.encryption-status.insecure {
+  @apply text-status-warning;
+}
+
+/* ============================================
+   Modal
+   ============================================ */
+.modal {
+  @apply fixed inset-0 z-50 flex items-center justify-center;
+}
+
+.modal.hidden {
+  display: none !important;
+}
+
+.modal-backdrop {
+  @apply absolute inset-0 bg-black/70 backdrop-blur-sm;
+}
+
+.modal-content {
+  @apply relative w-full max-w-lg mx-4 bg-terminal-surface border border-border
+         rounded-lg shadow-elevated overflow-hidden;
+  animation: slide-up 0.2s ease-out;
+}
+
+.modal-header {
+  @apply flex items-center justify-between px-6 py-4 border-b border-border-subtle;
+}
+
+.modal-title {
+  @apply text-ui-lg font-bold text-text-primary;
+}
+
+.modal-close {
+  @apply w-8 h-8 flex items-center justify-center rounded
+         text-text-muted hover:text-text-primary hover:bg-terminal-hover
+         text-xl transition-colors;
+}
+
+.modal-body {
+  @apply px-6 py-5 space-y-6;
+}
+
+.connection-info label {
+  @apply block text-ui-sm text-text-secondary mb-2;
+}
+
+.url-display {
+  @apply flex items-center gap-2 p-3 bg-terminal-deep rounded border border-border;
+}
+
+.url-display code {
+  @apply flex-1 font-mono text-phosphor truncate;
+}
+
+.copy-btn {
+  @apply p-2 rounded text-text-muted hover:text-phosphor
+         hover:bg-terminal-hover transition-colors;
+}
+
+.credentials-section {
+  @apply space-y-4;
+}
+
+.section-header {
+  @apply flex items-center justify-between;
+}
+
+.section-header h3 {
+  @apply text-ui font-medium text-text-primary;
+}
+
+.credential-count {
+  @apply text-ui-sm text-text-muted;
+}
+
+.new-credential {
+  @apply flex gap-2;
+}
+
+.new-credential input {
+  @apply flex-1 px-3 py-2 bg-terminal-deep border border-border rounded
+         text-text-primary placeholder-text-muted font-mono
+         focus:outline-none focus:border-phosphor focus:ring-1 focus:ring-phosphor-glow
+         transition-colors;
+}
+
+.create-cred-btn {
+  @apply px-4 py-2 bg-transparent border border-phosphor rounded
+         text-phosphor font-medium hover:bg-phosphor hover:text-terminal-deep
+         transition-colors;
+}
+
+.credentials-list {
+  @apply space-y-2 max-h-48 overflow-y-auto;
+}
+
+.no-credentials {
+  @apply text-center py-4 text-text-muted text-ui-sm;
+}
+
+.credential-item {
+  @apply flex items-center justify-between p-3 bg-terminal-elevated rounded
+         border border-border-subtle;
+}
+
+.credential-info {
+  @apply flex flex-col;
+}
+
+.credential-username {
+  @apply font-mono text-text-primary;
+}
+
+.credential-pin {
+  @apply font-mono text-phosphor text-ui-lg tracking-wider;
+}
+
+.credential-actions {
+  @apply flex items-center gap-2;
+}
+
+.credential-actions button {
+  @apply p-1.5 rounded text-text-muted hover:text-status-error
+         hover:bg-terminal-hover transition-colors;
+}
+
+/* ============================================
+   CodeMirror Custom Theme
+   ============================================ */
+.cm-editor {
+  @apply h-full bg-terminal-deep text-text-primary;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.cm-editor.cm-focused {
+  outline: none;
+}
+
+.cm-scroller {
+  @apply overflow-auto;
+}
+
+.cm-content {
+  @apply py-4;
+  caret-color: var(--phosphor);
+}
+
+.cm-cursor {
+  border-left-color: var(--phosphor);
+  border-left-width: 2px;
+}
+
+.cm-activeLine {
+  background: rgba(0, 255, 159, 0.03);
+}
+
+.cm-activeLineGutter {
+  background: rgba(0, 255, 159, 0.05);
+}
+
+.cm-gutters {
+  @apply bg-terminal-base border-r border-border-subtle;
+  min-width: 48px;
+}
+
+.cm-lineNumbers .cm-gutterElement {
+  @apply text-text-muted text-right pr-3;
+  min-width: 40px;
+}
+
+.cm-selectionBackground,
+.cm-content ::selection {
+  background: rgba(0, 255, 159, 0.2) !important;
+}
+
+/* Syntax highlighting - Terminal/Hacker theme */
+.cm-line {
+  @apply px-4;
+}
+
+.tok-keyword { color: #ff79c6; }
+.tok-operator { color: #ff79c6; }
+.tok-number { color: #bd93f9; }
+.tok-string { color: #f1fa8c; }
+.tok-string2 { color: #ffb86c; }
+.tok-comment { color: #6272a4; font-style: italic; }
+.tok-variableName { color: #50fa7b; }
+.tok-definition { color: #50fa7b; }
+.tok-function { color: #8be9fd; }
+.tok-className { color: #8be9fd; }
+.tok-typeName { color: #8be9fd; }
+.tok-propertyName { color: #66d9ef; }
+.tok-bool { color: #bd93f9; }
+.tok-null { color: #bd93f9; }
+.tok-punctuation { color: #f8f8f2; }
+.tok-bracket { color: #f8f8f2; }
+.tok-meta { color: #f8f8f2; }
+.tok-tag { color: #ff79c6; }
+.tok-attributeName { color: #50fa7b; }
+.tok-attributeValue { color: #f1fa8c; }
+
+/* Remote cursor styling (y-codemirror.next) */
+.cm-ySelectionInfo {
+  @apply px-1.5 py-0.5 text-xs rounded whitespace-nowrap;
+  font-family: 'Space Mono', monospace;
+  position: absolute;
+  top: -1.4em;
+  left: -1px;
+  opacity: 0;
+  transition: opacity 0.3s ease-in-out;
+  pointer-events: none;
+  z-index: 101;
+}
+
+.cm-yLineSelection {
+  opacity: 0.15;
+}
+
+.cm-ySelection {
+  opacity: 0.3;
+}
+
+/* Show cursor label on hover */
+.cm-ySelectionCaretDot {
+  position: relative;
+}
+
+.cm-ySelectionCaretDot:hover + .cm-ySelectionInfo,
+.cm-editor:focus-within .cm-ySelectionInfo {
+  opacity: 1;
+}
+
+/* ============================================
+   Animations
+   ============================================ */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 4px var(--phosphor);
+    opacity: 1;
+  }
+  50% {
+    box-shadow: 0 0 12px var(--phosphor);
+    opacity: 0.8;
+  }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ============================================
+   Utility Classes
+   ============================================ */
+.hidden {
+  display: none !important;
+}
+
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
