@@ -643,6 +643,36 @@ export class CollaborationServer {
   }
 
   /**
+   * Broadcast host cursor position to all guests
+   */
+  broadcastHostCursor(tabId: string, line: number, column: number): void {
+    this.broadcast({
+      type: WS_MESSAGE_TYPES.CURSOR_UPDATE,
+      username: 'Host',
+      color: '#2dd4bf', // Accent color
+      tabId,
+      line,
+      column,
+      timestamp: Date.now()
+    })
+  }
+
+  /**
+   * Broadcast host selection to all guests
+   */
+  broadcastHostSelection(tabId: string, anchor: { line: number; column: number }, head: { line: number; column: number }): void {
+    this.broadcast({
+      type: WS_MESSAGE_TYPES.SELECTION_UPDATE,
+      username: 'Host',
+      color: '#2dd4bf', // Accent color
+      tabId,
+      anchor,
+      head,
+      timestamp: Date.now()
+    })
+  }
+
+  /**
    * Get current shared content for a tab
    */
   getTabContent(tabId: string): string | null {
@@ -728,6 +758,24 @@ export class CollaborationServer {
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/guest.css">
+  <!-- Highlight.js for syntax highlighting -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <!-- Common languages -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/typescript.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/javascript.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/go.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/rust.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/java.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/cpp.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/c.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/css.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/json.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/yaml.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/bash.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/sql.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/markdown.min.js"></script>
 </head>
 <body>
   <div id="login-container" class="container">
@@ -838,7 +886,10 @@ export class CollaborationServer {
     <div id="tabs-container" class="guest-tabs-container"></div>
     <div id="editor-wrapper" class="editor-wrapper">
       <div id="line-numbers" class="line-numbers"><span>1</span></div>
-      <textarea id="editor-textarea" class="editor-textarea" placeholder="Start typing or wait for content to sync..." spellcheck="false"></textarea>
+      <div class="editor-content-area">
+        <pre id="highlight-overlay" class="highlight-overlay"><code id="highlight-code"></code></pre>
+        <textarea id="editor-textarea" class="editor-textarea" placeholder="Start typing or wait for content to sync..." spellcheck="false"></textarea>
+      </div>
     </div>
     <div class="editor-footer">
       <span class="sync-status" id="sync-status">Connecting...</span>
@@ -864,6 +915,96 @@ export class CollaborationServer {
     let currentUsername = '';
     let remoteCursors = new Map(); // username -> { line, column, color, element }
     let lastCursorPos = { line: 0, column: 0 };
+    let currentLanguage = 'plaintext';
+
+    // Language detection from filename
+    const languageMap = {
+      'js': 'javascript',
+      'jsx': 'javascript',
+      'ts': 'typescript',
+      'tsx': 'typescript',
+      'py': 'python',
+      'go': 'go',
+      'rs': 'rust',
+      'java': 'java',
+      'cpp': 'cpp',
+      'cc': 'cpp',
+      'cxx': 'cpp',
+      'c': 'c',
+      'h': 'c',
+      'hpp': 'cpp',
+      'css': 'css',
+      'scss': 'css',
+      'json': 'json',
+      'yaml': 'yaml',
+      'yml': 'yaml',
+      'sh': 'bash',
+      'bash': 'bash',
+      'zsh': 'bash',
+      'sql': 'sql',
+      'md': 'markdown',
+      'markdown': 'markdown',
+      'html': 'xml',
+      'xml': 'xml',
+      'vue': 'xml',
+      'svelte': 'xml'
+    };
+
+    function getLanguageFromFilename(filename) {
+      if (!filename) return 'plaintext';
+      const ext = filename.split('.').pop().toLowerCase();
+      return languageMap[ext] || 'plaintext';
+    }
+
+    function updateSyntaxHighlighting(content, language) {
+      const highlightCode = document.getElementById('highlight-code');
+      const highlightOverlay = document.getElementById('highlight-overlay');
+
+      if (!highlightCode || !highlightOverlay) {
+        console.log('[Guest] Highlight elements not found');
+        return;
+      }
+
+      // Escape HTML entities for the overlay
+      const escapedContent = content
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+      console.log('[Guest] Updating syntax highlighting, language:', language, 'hljs available:', typeof hljs !== 'undefined');
+
+      if (typeof hljs !== 'undefined') {
+        console.log('[Guest] hljs languages:', hljs.listLanguages ? hljs.listLanguages() : 'listLanguages not available');
+      }
+
+      if (language && language !== 'plaintext' && typeof hljs !== 'undefined') {
+        const langAvailable = hljs.getLanguage && hljs.getLanguage(language);
+        console.log('[Guest] Language', language, 'available:', !!langAvailable);
+
+        if (langAvailable) {
+          try {
+            const result = hljs.highlight(content, { language });
+            highlightCode.innerHTML = result.value + '\\n'; // Add trailing newline for proper height
+            console.log('[Guest] Applied highlighting for', language);
+          } catch (e) {
+            console.log('[Guest] Highlight error:', e);
+            highlightCode.innerHTML = escapedContent + '\\n';
+          }
+        } else {
+          // Try auto-detection
+          try {
+            const result = hljs.highlightAuto(content);
+            highlightCode.innerHTML = result.value + '\\n';
+            console.log('[Guest] Applied auto-detected highlighting:', result.language);
+          } catch (e) {
+            highlightCode.innerHTML = escapedContent + '\\n';
+          }
+        }
+      } else {
+        highlightCode.innerHTML = escapedContent + '\\n';
+        console.log('[Guest] No highlighting applied, showing plain text');
+      }
+    }
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -946,6 +1087,8 @@ export class CollaborationServer {
                 editorTextarea.selectionEnd = editorTextarea.selectionStart;
                 isUpdating = false;
                 updateLineNumbers();
+                // Update syntax highlighting
+                updateSyntaxHighlighting(message.content, currentLanguage);
               }
             }
             break;
@@ -1070,6 +1213,8 @@ export class CollaborationServer {
           content: newContent
         }));
         updateLineNumbers();
+        // Update syntax highlighting
+        updateSyntaxHighlighting(newContent, currentLanguage);
       }
     });
 
@@ -1099,9 +1244,16 @@ export class CollaborationServer {
       if (!tabs.has(tabId)) return;
       activeTabId = tabId;
       const tab = tabs.get(tabId);
+      console.log('[Guest] setActiveTab:', tabId, 'filename:', tab.filename, 'content length:', tab.content.length);
       isUpdating = true;
       editorTextarea.value = tab.content;
       isUpdating = false;
+
+      // Update language and syntax highlighting
+      currentLanguage = getLanguageFromFilename(tab.filename);
+      console.log('[Guest] Detected language:', currentLanguage, 'from filename:', tab.filename);
+      updateSyntaxHighlighting(tab.content, currentLanguage);
+
       updateLineNumbers();
       renderTabs();
     }
@@ -1252,23 +1404,130 @@ export class CollaborationServer {
 
     function removeRemoteCursor(username) {
       const cursorData = remoteCursors.get(username);
-      if (cursorData && cursorData.element) {
-        cursorData.element.remove();
+      if (cursorData) {
+        if (cursorData.element) {
+          cursorData.element.remove();
+        }
+        if (cursorData.selectionElement) {
+          cursorData.selectionElement.remove();
+        }
       }
       remoteCursors.delete(username);
     }
 
     function updateRemoteSelection(username, color, anchor, head) {
-      // For simplicity, we'll just update the cursor position to the head of the selection
-      // Full selection highlighting would require more complex overlay rendering
+      // Update cursor at head position
       updateRemoteCursor(username, color, head.line, head.column);
+
+      // Get or create cursor data
+      let cursorData = remoteCursors.get(username);
+      if (!cursorData) return;
+
+      // Store anchor and head for re-rendering on scroll
+      cursorData.anchor = anchor;
+      cursorData.head = head;
+
+      // Remove existing selection highlight
+      if (cursorData.selectionElement) {
+        cursorData.selectionElement.remove();
+        cursorData.selectionElement = null;
+      }
+
+      // Check if there's actually a selection (not just cursor)
+      if (anchor.line === head.line && anchor.column === head.column) {
+        return;
+      }
+
+      // Create selection highlight container
+      const selectionContainer = document.createElement('div');
+      selectionContainer.className = 'remote-selection-container';
+      selectionContainer.style.cssText = 'position: absolute; top: 0; left: 0; pointer-events: none; z-index: 40;';
+
+      // Calculate selection range
+      const startLine = Math.min(anchor.line, head.line);
+      const endLine = Math.max(anchor.line, head.line);
+      const lineHeight = 22.1;
+      const charWidth = 7.8;
+      const paddingTop = 20;
+      const paddingLeft = 68;
+
+      // Get text to calculate positions accurately
+      const lines = editorTextarea.value.split('\\n');
+
+      for (let line = startLine; line <= endLine; line++) {
+        const lineText = lines[line - 1] || '';
+        let startCol, endCol;
+
+        if (line === startLine && line === endLine) {
+          // Single line selection
+          startCol = Math.min(anchor.column, head.column);
+          endCol = Math.max(anchor.column, head.column);
+        } else if (line === startLine) {
+          // First line of multi-line selection
+          startCol = anchor.line < head.line ? anchor.column : head.column;
+          endCol = lineText.length + 1;
+        } else if (line === endLine) {
+          // Last line of multi-line selection
+          startCol = 1;
+          endCol = anchor.line < head.line ? head.column : anchor.column;
+        } else {
+          // Middle line - select entire line
+          startCol = 1;
+          endCol = lineText.length + 1;
+        }
+
+        const highlight = document.createElement('div');
+        highlight.className = 'remote-selection-highlight';
+        const top = paddingTop + (line - 1) * lineHeight - editorTextarea.scrollTop;
+        const left = paddingLeft + (startCol - 1) * charWidth - editorTextarea.scrollLeft;
+        const width = Math.max((endCol - startCol) * charWidth, 4);
+
+        highlight.style.cssText = \`
+          position: absolute;
+          top: \${top}px;
+          left: \${left}px;
+          width: \${width}px;
+          height: \${lineHeight}px;
+          background: \${color}25;
+          border-radius: 2px;
+          pointer-events: none;
+        \`;
+
+        selectionContainer.appendChild(highlight);
+      }
+
+      document.getElementById('editor-wrapper').appendChild(selectionContainer);
+      cursorData.selectionElement = selectionContainer;
     }
 
-    // Update cursor positions on scroll
+    function repositionSelections() {
+      // Re-render all selections on scroll
+      remoteCursors.forEach((cursorData, username) => {
+        if (cursorData.selectionElement && cursorData.anchor && cursorData.head) {
+          updateRemoteSelection(username, cursorData.color, cursorData.anchor, cursorData.head);
+        }
+      });
+    }
+
+    // Update cursor and selection positions on scroll
     editorTextarea.addEventListener('scroll', () => {
       const lineNumbers = document.getElementById('line-numbers');
       lineNumbers.scrollTop = editorTextarea.scrollTop;
-      remoteCursors.forEach(positionRemoteCursor);
+
+      // Sync scroll to highlight overlay
+      const highlightOverlay = document.getElementById('highlight-overlay');
+      if (highlightOverlay) {
+        highlightOverlay.scrollTop = editorTextarea.scrollTop;
+        highlightOverlay.scrollLeft = editorTextarea.scrollLeft;
+      }
+
+      remoteCursors.forEach((cursorData, username) => {
+        positionRemoteCursor(cursorData);
+        // Re-render selection if it exists
+        if (cursorData.anchor && cursorData.head) {
+          updateRemoteSelection(username, cursorData.color, cursorData.anchor, cursorData.head);
+        }
+      });
     });
 
     // Actions dropdown functionality
@@ -1630,6 +1889,12 @@ body {
   background: var(--bg-base);
 }
 
+.editor-content-area {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
 .line-numbers {
   background: transparent;
   color: var(--text-tertiary);
@@ -1648,10 +1913,57 @@ body {
   display: block;
 }
 
-.editor-textarea {
-  flex: 1;
+/* Syntax highlighting overlay */
+.highlight-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: 0;
+  padding: 20px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  line-height: 1.7;
+  white-space: pre;
+  overflow: auto;
+  pointer-events: none;
   background: transparent;
+  border: none;
   color: var(--text-primary);
+  tab-size: 2;
+  -moz-tab-size: 2;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Hide scrollbar on overlay - we'll scroll it via JS */
+.highlight-overlay::-webkit-scrollbar {
+  display: none;
+}
+
+.highlight-overlay code {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  background: transparent;
+  padding: 0;
+}
+
+/* Override highlight.js background */
+.highlight-overlay code.hljs {
+  background: transparent;
+  padding: 0;
+}
+
+.editor-textarea {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: transparent;
+  color: transparent;
   font-family: 'IBM Plex Mono', monospace;
   font-size: 13px;
   line-height: 1.7;
@@ -1661,8 +1973,11 @@ body {
   outline: none;
   white-space: pre;
   overflow-wrap: normal;
-  overflow-x: auto;
+  overflow: auto;
   caret-color: var(--accent-primary);
+  tab-size: 2;
+  -moz-tab-size: 2;
+  z-index: 1;
 }
 
 .editor-textarea::selection {
@@ -1671,6 +1986,13 @@ body {
 
 .editor-textarea::placeholder {
   color: var(--text-disabled);
+  /* Override transparent color for placeholder */
+  -webkit-text-fill-color: var(--text-disabled);
+}
+
+/* Hide overlay when code is empty to show placeholder */
+.highlight-overlay code:empty::after {
+  content: '';
 }
 
 .guest-tabs-container {
@@ -1811,8 +2133,13 @@ body {
 
 .editor-textarea.disabled {
   background: var(--bg-surface);
-  color: var(--text-disabled);
+  color: transparent;
   cursor: not-allowed;
+}
+
+.editor-textarea.disabled + .highlight-overlay,
+.editor-textarea.disabled ~ .highlight-overlay {
+  color: var(--text-disabled);
 }
 
 .waiting-message {

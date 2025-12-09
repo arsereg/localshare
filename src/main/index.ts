@@ -308,6 +308,18 @@ ipcMain.handle('server:focus-all-guests', (_event, tabId: string) => {
   return { success: true }
 })
 
+ipcMain.handle('server:broadcast-cursor', (_event, data: { tabId: string; line: number; column: number }) => {
+  if (!collaborationServer) return { success: false, error: 'Server not running' }
+  collaborationServer.broadcastHostCursor(data.tabId, data.line, data.column)
+  return { success: true }
+})
+
+ipcMain.handle('server:broadcast-selection', (_event, data: { tabId: string; anchor: { line: number; column: number }; head: { line: number; column: number } }) => {
+  if (!collaborationServer) return { success: false, error: 'Server not running' }
+  collaborationServer.broadcastHostSelection(data.tabId, data.anchor, data.head)
+  return { success: true }
+})
+
 // Credential management
 ipcMain.handle(IPC_CHANNELS.CREDENTIALS_CREATE, (_event, username: string) => {
   if (credentials.size >= 10) {

@@ -72,8 +72,12 @@ export function Editor() {
       }
       lastBroadcastedCursor.current = { line, column }
 
-      // Broadcast cursor position to server (will be implemented via IPC)
-      // This will be connected to the WebSocket in the main process
+      // Broadcast cursor position to guests
+      window.electronAPI.server.broadcastCursor({
+        tabId: currentTab.id,
+        line,
+        column
+      })
     },
     [setCursorPosition, getActiveTab]
   )
@@ -90,7 +94,12 @@ export function Editor() {
       }
       lastBroadcastedSelection.current = selectionKey
 
-      // Broadcast selection to server (will be implemented via IPC)
+      // Broadcast selection to guests
+      window.electronAPI.server.broadcastSelection({
+        tabId: currentTab.id,
+        anchor,
+        head
+      })
     },
     [getActiveTab]
   )

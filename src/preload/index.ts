@@ -54,6 +54,12 @@ const electronAPI = {
     focusAllGuests: (tabId: string): Promise<{ success: boolean; error?: string }> =>
       ipcRenderer.invoke('server:focus-all-guests', tabId),
 
+    broadcastCursor: (data: { tabId: string; line: number; column: number }): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('server:broadcast-cursor', data),
+
+    broadcastSelection: (data: { tabId: string; anchor: { line: number; column: number }; head: { line: number; column: number } }): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('server:broadcast-selection', data),
+
     onStatusChange: (callback: (status: ServerStatus) => void): (() => void) => {
       const handler = (_event: any, status: ServerStatus) => callback(status)
       ipcRenderer.on(IPC_CHANNELS.SERVER_STATUS, handler)

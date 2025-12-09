@@ -6,7 +6,6 @@ import { motion } from 'motion/react'
 import { useAppStore } from '@stores/appStore'
 import { cn } from '@lib/utils'
 import {
-  IconMenu2,
   IconUsers,
   IconCircleFilled
 } from '@tabler/icons-react'
@@ -108,21 +107,6 @@ export function TitleBar() {
               </div>
             </motion.div>
           )}
-
-          {/* Menu Button */}
-          <motion.button
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className={cn(
-              'p-1.5 rounded-md transition-colors',
-              'text-text-tertiary hover:text-text-primary',
-              'hover:bg-bg-hover'
-            )}
-            title="Menu"
-          >
-            <IconMenu2 size={16} />
-          </motion.button>
         </div>
       </div>
 
