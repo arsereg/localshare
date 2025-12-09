@@ -541,7 +541,7 @@ export class CollaborationServer {
     this.port = null
   }
 
-  // Inline guest login page HTML
+  // Inline guest login page HTML - refined professional theme
   private getGuestLoginPage(): string {
     return `<!DOCTYPE html>
 <html lang="en">
@@ -551,37 +551,29 @@ export class CollaborationServer {
   <title>LocalShare - Join Session</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/guest.css">
 </head>
 <body>
   <div id="login-container" class="container">
-    <div class="terminal-window">
-      <div class="terminal-header">
-        <div class="terminal-dots">
-          <span class="dot red"></span>
-          <span class="dot yellow"></span>
-          <span class="dot green"></span>
-        </div>
-        <span class="terminal-title">localshare@session</span>
-      </div>
-      <div class="terminal-body">
+    <div class="login-card">
+      <div class="card-content">
         <div class="logo-section">
-          <pre class="ascii-logo">
- _                    _  ____  _
-| |    ___   ___ __ _| |/ ___|| |__   __ _ _ __ ___
-| |   / _ \\ / __/ _\` | |\\___ \\| '_ \\ / _\` | '__/ _ \\
-| |__| (_) | (_| (_| | | ___) | | | | (_| | | |  __/
-|_____\\___/ \\___\\__,_|_||____/|_| |_|\\__,_|_|  \\___|
-          </pre>
-          <p class="tagline">Real-time collaborative code editing</p>
+          <div class="logo-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="16 18 22 12 16 6"></polyline>
+              <polyline points="8 6 2 12 8 18"></polyline>
+            </svg>
+          </div>
+          <h1 class="logo-text">
+            <span class="text-accent">Local</span><span class="text-primary">Share</span>
+          </h1>
+          <p class="tagline">Join collaborative editing session</p>
         </div>
 
         <form id="auth-form" class="auth-form">
           <div class="input-group">
-            <label for="username">
-              <span class="prompt">$</span> username:
-            </label>
+            <label for="username">Username</label>
             <input
               type="text"
               id="username"
@@ -590,14 +582,12 @@ export class CollaborationServer {
               required
               maxlength="20"
               pattern="[a-zA-Z0-9_-]+"
-              placeholder="enter_username"
+              placeholder="Enter your username"
             >
           </div>
 
           <div class="input-group">
-            <label for="pin">
-              <span class="prompt">$</span> access_pin:
-            </label>
+            <label for="pin">Access PIN</label>
             <input
               type="password"
               id="pin"
@@ -606,48 +596,78 @@ export class CollaborationServer {
               required
               maxlength="6"
               pattern="[0-9]{6}"
-              placeholder="******"
+              placeholder="6-digit PIN"
             >
           </div>
 
           <div id="error-message" class="error-message hidden"></div>
 
           <button type="submit" class="submit-btn">
-            <span class="btn-text">CONNECT</span>
-            <span class="btn-icon">_</span>
+            Connect
           </button>
         </form>
 
         <div class="footer">
-          <span class="blink">_</span> Secure local network connection
+          <div class="status-indicator">
+            <span class="status-dot"></span>
+            <span>Local network connection</span>
+          </div>
         </div>
       </div>
     </div>
-    <div class="scanline"></div>
   </div>
 
   <!-- Full-screen editor (shown after login) -->
   <div id="editor-screen" class="editor-screen hidden">
     <div class="editor-header">
       <div class="header-left">
-        <span class="brand"><span class="text-phosphor">Local</span><span class="text-cyber">Share</span></span>
-        <span class="separator">|</span>
+        <span class="brand">
+          <span class="text-accent">Local</span><span class="text-primary">Share</span>
+        </span>
+        <span class="separator"></span>
         <span class="connection-info">
-          <span class="status-dot"></span>
+          <span class="status-dot online"></span>
           <span id="connected-user-display"></span>
         </span>
       </div>
       <div class="header-right">
         <span id="users-online" class="users-online"></span>
+        <!-- Actions Dropdown -->
+        <div class="actions-dropdown" id="actions-dropdown">
+          <button class="actions-btn" id="actions-btn">
+            <span>Actions</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+          <div class="actions-menu hidden" id="actions-menu">
+            <button class="action-item" id="action-save">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                <polyline points="7 3 7 8 15 8"></polyline>
+              </svg>
+              <span>Save to file</span>
+            </button>
+            <button class="action-item" id="action-copy">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+              <span>Copy content</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
     <div id="tabs-container" class="guest-tabs-container"></div>
     <div id="editor-wrapper" class="editor-wrapper">
       <div id="line-numbers" class="line-numbers"><span>1</span></div>
-      <textarea id="editor-textarea" class="editor-textarea" placeholder="Start typing or wait for content to sync..."></textarea>
+      <textarea id="editor-textarea" class="editor-textarea" placeholder="Start typing or wait for content to sync..." spellcheck="false"></textarea>
     </div>
     <div class="editor-footer">
-      <span class="sync-status" id="sync-status">Syncing...</span>
+      <span class="sync-status" id="sync-status">Connecting...</span>
+      <span class="action-feedback hidden" id="action-feedback"></span>
     </div>
   </div>
 
@@ -928,6 +948,72 @@ export class CollaborationServer {
       editorTextarea.placeholder = 'Start typing or wait for content to sync...';
       editorTextarea.classList.remove('disabled');
     }
+
+    // Actions dropdown functionality
+    const actionsBtn = document.getElementById('actions-btn');
+    const actionsMenu = document.getElementById('actions-menu');
+    const actionSave = document.getElementById('action-save');
+    const actionCopy = document.getElementById('action-copy');
+    const actionFeedback = document.getElementById('action-feedback');
+
+    actionsBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      actionsMenu.classList.toggle('hidden');
+    });
+
+    document.addEventListener('click', () => {
+      actionsMenu.classList.add('hidden');
+    });
+
+    function showFeedback(message) {
+      actionFeedback.textContent = message;
+      actionFeedback.classList.remove('hidden');
+      setTimeout(() => actionFeedback.classList.add('hidden'), 2000);
+    }
+
+    // Save to file
+    actionSave.addEventListener('click', () => {
+      if (!activeTabId) return;
+      const tab = tabs.get(activeTabId);
+      if (!tab) return;
+
+      // Create a blob and download link
+      const blob = new Blob([tab.content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = tab.filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      actionsMenu.classList.add('hidden');
+      showFeedback('File downloaded');
+    });
+
+    // Copy to clipboard
+    actionCopy.addEventListener('click', async () => {
+      if (!activeTabId) return;
+      const tab = tabs.get(activeTabId);
+      if (!tab) return;
+
+      try {
+        await navigator.clipboard.writeText(tab.content);
+        showFeedback('Copied to clipboard');
+      } catch (err) {
+        // Fallback for older browsers
+        const textarea = document.createElement('textarea');
+        textarea.value = tab.content;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        showFeedback('Copied to clipboard');
+      }
+
+      actionsMenu.classList.add('hidden');
+    });
   </script>
 </body>
 </html>`
@@ -942,79 +1028,63 @@ export class CollaborationServer {
 }
 
 :root {
-  --bg-deep: #0a0e14;
-  --bg-base: #0d1117;
-  --bg-surface: #161b22;
-  --bg-elevated: #1c2128;
-  --phosphor: #00ff9f;
-  --phosphor-dim: #004d40;
-  --phosphor-glow: rgba(0, 255, 159, 0.15);
-  --cyber: #00d9ff;
-  --text-primary: #e6edf3;
-  --text-secondary: #8b949e;
-  --text-muted: #484f58;
-  --error: #ff0055;
-  --border: #30363d;
+  /* Core backgrounds */
+  --bg-base: #0c0c0e;
+  --bg-surface: #141417;
+  --bg-elevated: #1c1c21;
+  --bg-hover: #252529;
+
+  /* Accent colors - refined teal */
+  --accent-primary: #2dd4bf;
+  --accent-primary-dim: rgba(45, 212, 191, 0.15);
+  --accent-secondary: #f97066;
+  --accent-tertiary: #a78bfa;
+
+  /* Text hierarchy */
+  --text-primary: #f4f4f5;
+  --text-secondary: #a1a1aa;
+  --text-tertiary: #71717a;
+  --text-disabled: #52525b;
+
+  /* Status colors */
+  --status-error: #f87171;
+  --status-warning: #fbbf24;
+  --status-success: #34d399;
+
+  /* Border colors */
+  --border-subtle: rgba(255, 255, 255, 0.04);
+  --border-default: rgba(255, 255, 255, 0.08);
+  --border-emphasis: rgba(255, 255, 255, 0.12);
 }
 
 body {
-  font-family: 'Space Mono', monospace;
-  background: var(--bg-deep);
+  font-family: 'Instrument Sans', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  background: var(--bg-base);
   color: var(--text-primary);
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
-  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
 }
 
 .container {
   position: relative;
   width: 100%;
-  max-width: 560px;
+  max-width: 380px;
 }
 
-.terminal-window {
-  background: var(--bg-base);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 0 60px rgba(0, 255, 159, 0.1);
-}
-
-.terminal-header {
+.login-card {
   background: var(--bg-surface);
-  padding: 12px 16px;
-  display: flex;
-  align-items: center;
-  border-bottom: 1px solid var(--border);
+  border: 1px solid var(--border-default);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
 }
 
-.terminal-dots {
-  display: flex;
-  gap: 8px;
-}
-
-.dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-}
-
-.dot.red { background: #ff5f56; }
-.dot.yellow { background: #ffbd2e; }
-.dot.green { background: #27c93f; }
-
-.terminal-title {
-  flex: 1;
-  text-align: center;
-  color: var(--text-secondary);
-  font-size: 12px;
-}
-
-.terminal-body {
-  padding: 32px;
+.card-content {
+  padding: 40px 32px;
 }
 
 .logo-section {
@@ -1022,73 +1092,85 @@ body {
   margin-bottom: 32px;
 }
 
-.ascii-logo {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 8px;
-  line-height: 1.2;
-  color: var(--phosphor);
-  text-shadow: 0 0 10px var(--phosphor-glow);
-  white-space: pre;
-  display: inline-block;
+.logo-icon {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-elevated);
+  border-radius: 12px;
+  border: 1px solid var(--border-default);
+  color: var(--accent-primary);
+}
+
+.logo-text {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+.text-accent {
+  color: var(--accent-primary);
+}
+
+.text-primary {
+  color: var(--text-primary);
 }
 
 .tagline {
   color: var(--text-secondary);
-  font-size: 12px;
-  margin-top: 12px;
+  font-size: 13px;
+  margin-top: 6px;
 }
 
 .auth-form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
 }
 
 .input-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .input-group label {
   font-size: 12px;
+  font-weight: 500;
   color: var(--text-secondary);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.prompt {
-  color: var(--phosphor);
 }
 
 .input-group input {
-  background: var(--bg-deep);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 12px 16px;
+  width: 100%;
+  background: var(--bg-base);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  padding: 12px 14px;
   color: var(--text-primary);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 14px;
-  transition: all 0.2s ease;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  transition: all 0.15s ease;
 }
 
 .input-group input:focus {
   outline: none;
-  border-color: var(--phosphor);
-  box-shadow: 0 0 0 3px var(--phosphor-glow);
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--accent-primary-dim);
 }
 
 .input-group input::placeholder {
-  color: var(--text-muted);
+  color: var(--text-disabled);
 }
 
 .error-message {
-  background: rgba(255, 0, 85, 0.1);
-  border: 1px solid var(--error);
-  border-radius: 4px;
-  padding: 12px;
-  color: var(--error);
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid var(--status-error);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: var(--status-error);
   font-size: 12px;
   text-align: center;
 }
@@ -1098,110 +1180,63 @@ body {
 }
 
 .submit-btn {
-  background: transparent;
-  border: 1px solid var(--phosphor);
-  border-radius: 4px;
-  padding: 14px 24px;
-  color: var(--phosphor);
-  font-family: 'Space Mono', monospace;
-  font-size: 14px;
-  font-weight: 700;
+  width: 100%;
+  background: var(--accent-primary);
+  border: none;
+  border-radius: 8px;
+  padding: 12px 20px;
+  color: var(--bg-base);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  transition: all 0.2s ease;
-  margin-top: 8px;
+  transition: all 0.15s ease;
+  margin-top: 4px;
 }
 
 .submit-btn:hover {
-  background: var(--phosphor);
-  color: var(--bg-deep);
-  box-shadow: 0 0 20px var(--phosphor-glow);
+  opacity: 0.9;
+  transform: translateY(-1px);
+  box-shadow: 0 0 20px rgba(45, 212, 191, 0.25);
 }
 
-.btn-icon {
-  animation: blink 1s step-end infinite;
-}
-
-.editor-container {
-  margin-top: 24px;
-}
-
-.connection-status {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px;
-  background: var(--bg-surface);
-  border-radius: 4px;
-  margin-bottom: 16px;
-}
-
-.status-dot {
-  width: 8px;
-  height: 8px;
-  background: var(--phosphor);
-  border-radius: 50%;
-  animation: pulse 2s infinite;
-}
-
-.status-text {
-  font-size: 12px;
-  color: var(--text-secondary);
+.submit-btn:active {
+  transform: translateY(0);
 }
 
 .footer {
-  margin-top: 32px;
+  margin-top: 24px;
   text-align: center;
+}
+
+.status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 11px;
-  color: var(--text-muted);
+  color: var(--text-tertiary);
 }
 
-.blink {
-  animation: blink 1s step-end infinite;
-  color: var(--phosphor);
-}
-
-.scanline {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: linear-gradient(
-    transparent,
-    rgba(0, 255, 159, 0.03),
-    transparent
-  );
-  animation: scanline 8s linear infinite;
-  pointer-events: none;
-  z-index: 1000;
-}
-
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
+.status-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--status-success);
+  border-radius: 50%;
+  animation: pulse 2s ease-in-out infinite;
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; box-shadow: 0 0 4px var(--phosphor); }
-  50% { opacity: 0.7; box-shadow: 0 0 8px var(--phosphor); }
-}
-
-@keyframes scanline {
-  0% { transform: translateY(-100vh); }
-  100% { transform: translateY(100vh); }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
 @media (max-width: 480px) {
-  .terminal-body {
-    padding: 24px 16px;
+  .card-content {
+    padding: 32px 24px;
   }
 
-  .ascii-logo {
-    font-size: 6px;
+  .logo-text {
+    font-size: 20px;
   }
 }
 
@@ -1214,7 +1249,8 @@ body {
   bottom: 0;
   display: flex;
   flex-direction: column;
-  background: var(--bg-deep);
+  background: var(--bg-base);
+  z-index: 100;
 }
 
 .editor-screen.hidden {
@@ -1225,9 +1261,9 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 20px;
+  padding: 12px 16px;
   background: var(--bg-surface);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .header-left {
@@ -1238,40 +1274,30 @@ body {
 
 .brand {
   font-weight: 700;
-  font-size: 14px;
-}
-
-.text-phosphor {
-  color: var(--phosphor);
-}
-
-.text-cyber {
-  color: var(--cyber);
+  font-size: 13px;
 }
 
 .separator {
-  color: var(--border);
+  width: 1px;
+  height: 14px;
+  background: var(--border-default);
 }
 
 .connection-info {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-size: 12px;
   color: var(--text-secondary);
 }
 
-.connection-info .status-dot {
-  width: 8px;
-  height: 8px;
-  background: var(--phosphor);
-  border-radius: 50%;
-  animation: pulse 2s infinite;
+.status-dot.online {
+  background: var(--status-success);
 }
 
 .users-online {
-  font-size: 12px;
-  color: var(--text-muted);
+  font-size: 11px;
+  color: var(--text-tertiary);
 }
 
 .editor-wrapper {
@@ -1279,20 +1305,21 @@ body {
   display: flex;
   overflow: hidden;
   position: relative;
+  background: var(--bg-base);
 }
 
 .line-numbers {
-  background: var(--bg-base);
-  color: var(--text-muted);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 14px;
-  line-height: 1.6;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  line-height: 1.7;
   padding: 20px 12px;
   text-align: right;
-  border-right: 1px solid var(--border);
+  border-right: 1px solid var(--border-subtle);
   user-select: none;
   overflow: hidden;
-  min-width: 50px;
+  min-width: 48px;
 }
 
 .line-numbers span {
@@ -1301,11 +1328,11 @@ body {
 
 .editor-textarea {
   flex: 1;
-  background: var(--bg-deep);
+  background: transparent;
   color: var(--text-primary);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 14px;
-  line-height: 1.6;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  line-height: 1.7;
   padding: 20px;
   border: none;
   resize: none;
@@ -1313,18 +1340,25 @@ body {
   white-space: pre;
   overflow-wrap: normal;
   overflow-x: auto;
+  caret-color: var(--accent-primary);
+}
+
+.editor-textarea::selection {
+  background: var(--accent-primary-dim);
 }
 
 .editor-textarea::placeholder {
-  color: var(--text-muted);
+  color: var(--text-disabled);
 }
 
 .guest-tabs-container {
   display: flex;
-  background: var(--bg-base);
-  border-bottom: 1px solid var(--border);
+  gap: 2px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
   overflow-x: auto;
   scrollbar-width: none;
+  padding: 4px 8px 0;
 }
 
 .guest-tabs-container::-webkit-scrollbar {
@@ -1332,42 +1366,67 @@ body {
 }
 
 .guest-tab {
-  padding: 10px 16px;
+  padding: 8px 14px;
   font-size: 12px;
   color: var(--text-secondary);
   cursor: pointer;
-  border-right: 1px solid var(--border);
   white-space: nowrap;
-  transition: all 0.15s;
+  transition: all 0.15s ease;
+  border-radius: 6px 6px 0 0;
+  border: 1px solid transparent;
+  border-bottom: none;
 }
 
 .guest-tab:hover {
-  background: var(--bg-surface);
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 
 .guest-tab.active {
-  background: var(--bg-surface);
-  color: var(--phosphor);
-  border-bottom: 2px solid var(--phosphor);
+  background: var(--bg-elevated);
+  color: var(--accent-primary);
+  border-color: var(--border-default);
+  position: relative;
+}
+
+.guest-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--accent-primary);
+  border-radius: 2px 2px 0 0;
 }
 
 .editor-footer {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  padding: 8px 20px;
+  justify-content: space-between;
+  padding: 8px 16px;
   background: var(--bg-surface);
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--border-subtle);
 }
 
 .sync-status {
   font-size: 11px;
-  color: var(--text-muted);
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .sync-status.synced {
-  color: var(--phosphor);
+  color: var(--status-success);
+}
+
+.sync-status::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
 }
 
 .notification {
@@ -1375,37 +1434,132 @@ body {
   bottom: 60px;
   right: 20px;
   background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  padding: 12px 20px;
-  border-radius: 6px;
+  border: 1px solid var(--border-default);
+  padding: 10px 16px;
+  border-radius: 8px;
   font-size: 12px;
   color: var(--text-primary);
-  animation: slide-in 0.3s ease;
+  animation: slide-in 0.2s ease;
   z-index: 1000;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
 @keyframes slide-in {
   from {
     opacity: 0;
-    transform: translateX(20px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
-    transform: translateX(0);
+    transform: translateY(0);
   }
 }
 
 .editor-textarea.disabled {
-  background: var(--bg-base);
-  color: var(--text-muted);
+  background: var(--bg-surface);
+  color: var(--text-disabled);
   cursor: not-allowed;
 }
 
 .waiting-message {
-  padding: 10px 16px;
+  padding: 10px 14px;
   font-size: 12px;
-  color: var(--text-muted);
-  font-style: italic;
+  color: var(--text-tertiary);
+}
+
+/* Actions Dropdown */
+.actions-dropdown {
+  position: relative;
+  margin-left: 12px;
+}
+
+.actions-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.actions-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border-emphasis);
+}
+
+.actions-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 160px;
+  padding: 4px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  z-index: 100;
+}
+
+.actions-menu.hidden {
+  display: none;
+}
+
+.action-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+.action-item:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.action-item svg {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.action-item:hover svg {
+  color: var(--accent-primary);
+}
+
+/* Action feedback */
+.action-feedback {
+  font-size: 11px;
+  color: var(--status-success);
+  padding: 4px 10px;
+  background: rgba(52, 211, 153, 0.1);
+  border-radius: 4px;
+  animation: fade-in 0.15s ease;
+}
+
+.action-feedback.hidden {
+  display: none;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
     `
   }

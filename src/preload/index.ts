@@ -19,7 +19,13 @@ const electronAPI = {
       ipcRenderer.invoke(IPC_CHANNELS.FILE_OPEN_DIALOG),
 
     saveAs: (project: ProjectFile): Promise<{ success: boolean; path?: string; canceled?: boolean; error?: string }> =>
-      ipcRenderer.invoke(IPC_CHANNELS.FILE_SAVE_AS, project)
+      ipcRenderer.invoke(IPC_CHANNELS.FILE_SAVE_AS, project),
+
+    saveTabToFile: (data: { filename: string; content: string }): Promise<{ success: boolean; path?: string; canceled?: boolean; error?: string }> =>
+      ipcRenderer.invoke(IPC_CHANNELS.FILE_SAVE_TAB_TO_FILE, data),
+
+    openInVSCode: (data: { filename: string; content: string }): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke(IPC_CHANNELS.FILE_OPEN_IN_VSCODE, data)
   },
 
   // Server operations

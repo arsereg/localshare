@@ -82,6 +82,8 @@ export const IPC_CHANNELS = {
   FILE_NEW: 'file:new',
   FILE_SAVE_AS: 'file:save-as',
   FILE_OPEN_DIALOG: 'file:open-dialog',
+  FILE_SAVE_TAB_TO_FILE: 'file:save-tab-to-file',
+  FILE_OPEN_IN_VSCODE: 'file:open-in-vscode',
 
   // Server operations
   SERVER_STATUS: 'server:status',

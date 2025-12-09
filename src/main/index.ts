@@ -172,6 +172,57 @@ ipcMain.handle(IPC_CHANNELS.FILE_SAVE_AS, async (_event, project: ProjectFile) =
   }
 })
 
+// Save single tab content to file (user picks location)
+ipcMain.handle(IPC_CHANNELS.FILE_SAVE_TAB_TO_FILE, async (_event, data: { filename: string; content: string }) => {
+  if (!mainWindow) return { success: false, error: 'No window' }
+
+  const result = await dialog.showSaveDialog(mainWindow, {
+    defaultPath: join(app.getPath('documents'), data.filename),
+    filters: [
+      { name: 'All Files', extensions: ['*'] }
+    ]
+  })
+
+  if (result.canceled || !result.filePath) {
+    return { success: false, canceled: true }
+  }
+
+  try {
+    writeFileSync(result.filePath, data.content, 'utf-8')
+    return { success: true, path: result.filePath }
+  } catch (error) {
+    return { success: false, error: String(error) }
+  }
+})
+
+// Open content in VS Code (creates temp file and opens it with 'code' CLI)
+ipcMain.handle(IPC_CHANNELS.FILE_OPEN_IN_VSCODE, async (_event, data: { filename: string; content: string }) => {
+  const tempDir = join(app.getPath('temp'), 'localshare')
+
+  try {
+    // Ensure temp directory exists
+    if (!existsSync(tempDir)) {
+      mkdirSync(tempDir, { recursive: true })
+    }
+
+    // Write temp file
+    const tempFilePath = join(tempDir, data.filename)
+    writeFileSync(tempFilePath, data.content, 'utf-8')
+
+    // Open in VS Code using the 'code' CLI command
+    const { spawn } = require('child_process')
+    const child = spawn('code', [tempFilePath], {
+      detached: true,
+      stdio: 'ignore'
+    })
+    child.unref()
+
+    return { success: true }
+  } catch (error) {
+    return { success: false, error: String(error) }
+  }
+})
+
 // Server operations
 ipcMain.handle(IPC_CHANNELS.SERVER_STATUS, () => {
   if (!collaborationServer) {
