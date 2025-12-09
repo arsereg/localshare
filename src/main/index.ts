@@ -79,6 +79,36 @@ async function startCollaborationServer(): Promise<void> {
     }
   })
 
+  // Set up callback for user join events
+  collaborationServer.setOnUserJoin((user) => {
+    console.log('[Main] User joined:', user.username)
+    if (mainWindow) {
+      mainWindow.webContents.send(IPC_CHANNELS.CLIENT_CONNECTED, user)
+    }
+  })
+
+  // Set up callback for user leave events
+  collaborationServer.setOnUserLeave((username) => {
+    console.log('[Main] User left:', username)
+    if (mainWindow) {
+      mainWindow.webContents.send(IPC_CHANNELS.CLIENT_DISCONNECTED, username)
+    }
+  })
+
+  // Set up callback for cursor updates
+  collaborationServer.setOnCursorUpdate((data) => {
+    if (mainWindow) {
+      mainWindow.webContents.send(IPC_CHANNELS.CLIENT_CURSOR_UPDATE, data)
+    }
+  })
+
+  // Set up callback for selection updates (using a new channel)
+  collaborationServer.setOnSelectionUpdate((data) => {
+    if (mainWindow) {
+      mainWindow.webContents.send('client:selection-update', data)
+    }
+  })
+
   try {
     const serverInfo = await collaborationServer.start()
     console.log(`Collaboration server started on ${serverInfo.ip}:${serverInfo.port}`)

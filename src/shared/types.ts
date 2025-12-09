@@ -117,6 +117,55 @@ export const WS_MESSAGE_TYPES = {
   SYNC_INIT: 'sync:init',
   SYNC_UPDATE: 'sync:update',
   CURSOR_UPDATE: 'cursor:update',
+  SELECTION_UPDATE: 'selection:update',
   USER_JOIN: 'user:join',
-  USER_LEAVE: 'user:leave'
+  USER_LEAVE: 'user:leave',
+  // Follow mode
+  FOLLOW_REQUEST: 'follow:request',
+  FOLLOW_STOP: 'follow:stop',
+  VIEWPORT_UPDATE: 'viewport:update',
+  // Voice chat
+  VOICE_OFFER: 'voice:offer',
+  VOICE_ANSWER: 'voice:answer',
+  VOICE_ICE_CANDIDATE: 'voice:ice-candidate',
+  VOICE_JOIN: 'voice:join',
+  VOICE_LEAVE: 'voice:leave',
+  VOICE_MUTE: 'voice:mute'
 } as const
+
+/** Cursor position data for collaboration */
+export interface CursorData {
+  username: string
+  color: string
+  tabId: string
+  line: number
+  column: number
+  timestamp: number
+}
+
+/** Selection data for collaboration */
+export interface SelectionData {
+  username: string
+  color: string
+  tabId: string
+  anchor: { line: number; column: number }
+  head: { line: number; column: number }
+  timestamp: number
+}
+
+/** Viewport data for follow mode */
+export interface ViewportData {
+  username: string
+  tabId: string
+  scrollTop: number
+  scrollLeft: number
+  visibleLines: { from: number; to: number }
+}
+
+/** Voice chat participant */
+export interface VoiceParticipant {
+  username: string
+  color: string
+  isMuted: boolean
+  isSpeaking: boolean
+}

@@ -11,6 +11,8 @@ import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete'
 import { highlightSelectionMatches, searchKeymap } from '@codemirror/search'
 import { getLanguageExtension } from './language-detection'
 import { yCollab, yUndoManagerKeymap } from 'y-codemirror.next'
+import { collaborationExtensions, updateRemoteCursors, updateRemoteSelections } from './collaboration-extensions'
+import { CursorData, SelectionData } from '@shared/types'
 import type * as Y from 'yjs'
 import type { Awareness } from 'y-protocols/awareness'
 
@@ -167,9 +169,11 @@ export interface EditorConfig {
   languageId?: string
   onChange?: (content: string) => void
   onCursorChange?: (line: number, column: number) => void
+  onSelectionChange?: (anchor: { line: number; column: number }, head: { line: number; column: number }) => void
   // Collaboration options
   yText?: Y.Text
   awareness?: Awareness
+  enableCollaboration?: boolean
 }
 
 export class CodeEditor {
@@ -276,6 +280,28 @@ export class CodeEditor {
       )
     }
 
+    // Add selection change listener for collaboration
+    if (this.config.onSelectionChange) {
+      baseExtensions.push(
+        EditorView.updateListener.of((update) => {
+          if (update.selectionSet) {
+            const { anchor, head } = update.state.selection.main
+            const anchorLine = update.state.doc.lineAt(anchor)
+            const headLine = update.state.doc.lineAt(head)
+            this.config.onSelectionChange!(
+              { line: anchorLine.number, column: anchor - anchorLine.from + 1 },
+              { line: headLine.number, column: head - headLine.from + 1 }
+            )
+          }
+        })
+      )
+    }
+
+    // Add collaboration extensions for remote cursor/selection rendering
+    if (this.config.enableCollaboration !== false) {
+      baseExtensions.push(collaborationExtensions())
+    }
+
     return baseExtensions
   }
 
@@ -352,5 +378,65 @@ export class CodeEditor {
    */
   getView(): EditorView | null {
     return this.view
+  }
+
+  /**
+   * Update remote cursors for collaboration
+   */
+  setRemoteCursors(cursors: CursorData[]): void {
+    if (!this.view) return
+    updateRemoteCursors(this.view, cursors)
+  }
+
+  /**
+   * Update remote selections for collaboration
+   */
+  setRemoteSelections(selections: SelectionData[]): void {
+    if (!this.view) return
+    updateRemoteSelections(this.view, selections)
+  }
+
+  /**
+   * Get current selection (for broadcasting)
+   */
+  getSelection(): { anchor: { line: number; column: number }; head: { line: number; column: number } } {
+    if (!this.view) return { anchor: { line: 1, column: 1 }, head: { line: 1, column: 1 } }
+
+    const { anchor, head } = this.view.state.selection.main
+    const anchorLine = this.view.state.doc.lineAt(anchor)
+    const headLine = this.view.state.doc.lineAt(head)
+
+    return {
+      anchor: { line: anchorLine.number, column: anchor - anchorLine.from + 1 },
+      head: { line: headLine.number, column: head - headLine.from + 1 }
+    }
+  }
+
+  /**
+   * Scroll to a specific line (for follow mode)
+   */
+  scrollToLine(line: number): void {
+    if (!this.view) return
+    const lineInfo = this.view.state.doc.line(Math.min(line, this.view.state.doc.lines))
+    this.view.dispatch({
+      effects: EditorView.scrollIntoView(lineInfo.from, { y: 'start' })
+    })
+  }
+
+  /**
+   * Get current viewport info (for follow mode)
+   */
+  getViewport(): { scrollTop: number; scrollLeft: number; visibleLines: { from: number; to: number } } {
+    if (!this.view) return { scrollTop: 0, scrollLeft: 0, visibleLines: { from: 1, to: 1 } }
+
+    const { from, to } = this.view.viewport
+    const fromLine = this.view.state.doc.lineAt(from)
+    const toLine = this.view.state.doc.lineAt(to)
+
+    return {
+      scrollTop: this.view.scrollDOM.scrollTop,
+      scrollLeft: this.view.scrollDOM.scrollLeft,
+      visibleLines: { from: fromLine.number, to: toLine.number }
+    }
   }
 }

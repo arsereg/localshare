@@ -100,10 +100,16 @@ const electronAPI = {
       return () => ipcRenderer.removeListener(IPC_CHANNELS.CLIENT_DISCONNECTED, handler)
     },
 
-    onCursorUpdate: (callback: (data: { username: string; color: string; cursor: any }) => void): (() => void) => {
+    onCursorUpdate: (callback: (data: { username: string; color: string; tabId: string; line: number; column: number }) => void): (() => void) => {
       const handler = (_event: any, data: any) => callback(data)
       ipcRenderer.on(IPC_CHANNELS.CLIENT_CURSOR_UPDATE, handler)
       return () => ipcRenderer.removeListener(IPC_CHANNELS.CLIENT_CURSOR_UPDATE, handler)
+    },
+
+    onSelectionUpdate: (callback: (data: { username: string; color: string; tabId: string; anchor: { line: number; column: number }; head: { line: number; column: number } }) => void): (() => void) => {
+      const handler = (_event: any, data: any) => callback(data)
+      ipcRenderer.on('client:selection-update', handler)
+      return () => ipcRenderer.removeListener('client:selection-update', handler)
     }
   }
 }

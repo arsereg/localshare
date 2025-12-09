@@ -8,6 +8,7 @@ import { useServerAPI } from '@hooks/useElectronAPI'
 import { SUPPORTED_LANGUAGES } from '@shared/types'
 import { cn } from '@lib/utils'
 import { ActionsMenu } from './ActionsMenu'
+import { CollaborationPanel } from './CollaborationPanel'
 import {
   IconShare,
   IconFocus2,
@@ -110,6 +111,9 @@ export function StatusBar() {
             )}
           </div>
         )}
+
+        {/* Collaboration Panel */}
+        {hasGuests && <CollaborationPanel />}
 
         {/* Focus All button */}
         {hasGuests && (

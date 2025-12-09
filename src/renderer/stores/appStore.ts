@@ -3,13 +3,28 @@
  * Uses Zustand for state management
  */
 import { create } from 'zustand'
-import { DocumentTab, ServerStatus, GuestCredential } from '@shared/types'
+import { DocumentTab, ServerStatus, GuestCredential, CursorData, SelectionData, ViewportData, VoiceParticipant } from '@shared/types'
 import { v4 as uuidv4 } from 'uuid'
 import { detectLanguage } from '@lib/language-detection'
 
 interface ConnectedUser {
   username: string
   color: string
+  cursor?: CursorData
+  selection?: SelectionData
+  viewport?: ViewportData
+}
+
+interface FollowState {
+  isFollowing: boolean
+  targetUsername: string | null
+  followers: string[]  // usernames of people following us
+}
+
+interface VoiceChatState {
+  isActive: boolean
+  isMuted: boolean
+  participants: VoiceParticipant[]
 }
 
 interface AppState {
@@ -33,6 +48,10 @@ interface AppState {
 
   // Project
   projectName: string
+
+  // Collaboration
+  followState: FollowState
+  voiceChat: VoiceChatState
 
   // Actions - Tabs
   createTab: (filename?: string, content?: string) => DocumentTab
@@ -62,10 +81,32 @@ interface AppState {
   // Actions - Project
   setProjectName: (name: string) => void
 
+  // Actions - Collaboration
+  updateRemoteCursor: (data: CursorData) => void
+  updateRemoteSelection: (data: SelectionData) => void
+  updateRemoteViewport: (data: ViewportData) => void
+  clearRemotePresence: (username: string) => void
+
+  // Actions - Follow Mode
+  startFollowing: (targetUsername: string) => void
+  stopFollowing: () => void
+  addFollower: (username: string) => void
+  removeFollower: (username: string) => void
+
+  // Actions - Voice Chat
+  joinVoiceChat: () => void
+  leaveVoiceChat: () => void
+  setMuted: (isMuted: boolean) => void
+  addVoiceParticipant: (participant: VoiceParticipant) => void
+  removeVoiceParticipant: (username: string) => void
+  updateVoiceParticipant: (username: string, updates: Partial<VoiceParticipant>) => void
+
   // Getters
   getActiveTab: () => DocumentTab | null
   getTab: (tabId: string) => DocumentTab | undefined
   hasUnsavedTabs: () => boolean
+  getRemoteCursorsForTab: (tabId: string) => CursorData[]
+  getRemoteSelectionsForTab: (tabId: string) => SelectionData[]
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -87,6 +128,16 @@ export const useAppStore = create<AppState>((set, get) => ({
   isSaving: false,
   saveStatus: 'idle',
   projectName: 'untitled',
+  followState: {
+    isFollowing: false,
+    targetUsername: null,
+    followers: []
+  },
+  voiceChat: {
+    isActive: false,
+    isMuted: false,
+    participants: []
+  },
 
   // Tab actions
   createTab: (filename = 'untitled.txt', content = '') => {
@@ -231,5 +282,158 @@ export const useAppStore = create<AppState>((set, get) => ({
   hasUnsavedTabs: () => {
     const { tabs } = get()
     return tabs.some(t => t.isDirty)
+  },
+
+  // Collaboration actions
+  updateRemoteCursor: (data: CursorData) => {
+    set(state => {
+      const userExists = state.connectedUsers.some(u => u.username === data.username)
+      if (!userExists) {
+        // User not in list yet, add them with cursor
+        return {
+          connectedUsers: [...state.connectedUsers, { username: data.username, color: data.color, cursor: data }]
+        }
+      }
+      return {
+        connectedUsers: state.connectedUsers.map(u =>
+          u.username === data.username ? { ...u, cursor: data } : u
+        )
+      }
+    })
+  },
+
+  updateRemoteSelection: (data: SelectionData) => {
+    set(state => {
+      const userExists = state.connectedUsers.some(u => u.username === data.username)
+      if (!userExists) {
+        // User not in list yet, add them with selection
+        return {
+          connectedUsers: [...state.connectedUsers, { username: data.username, color: data.color, selection: data }]
+        }
+      }
+      return {
+        connectedUsers: state.connectedUsers.map(u =>
+          u.username === data.username ? { ...u, selection: data } : u
+        )
+      }
+    })
+  },
+
+  updateRemoteViewport: (data: ViewportData) => {
+    set(state => ({
+      connectedUsers: state.connectedUsers.map(u =>
+        u.username === data.username ? { ...u, viewport: data } : u
+      )
+    }))
+  },
+
+  clearRemotePresence: (username: string) => {
+    set(state => ({
+      connectedUsers: state.connectedUsers.map(u =>
+        u.username === username ? { ...u, cursor: undefined, selection: undefined, viewport: undefined } : u
+      )
+    }))
+  },
+
+  // Follow mode actions
+  startFollowing: (targetUsername: string) => {
+    set({
+      followState: {
+        isFollowing: true,
+        targetUsername,
+        followers: get().followState.followers
+      }
+    })
+  },
+
+  stopFollowing: () => {
+    set({
+      followState: {
+        isFollowing: false,
+        targetUsername: null,
+        followers: get().followState.followers
+      }
+    })
+  },
+
+  addFollower: (username: string) => {
+    set(state => ({
+      followState: {
+        ...state.followState,
+        followers: [...state.followState.followers.filter(f => f !== username), username]
+      }
+    }))
+  },
+
+  removeFollower: (username: string) => {
+    set(state => ({
+      followState: {
+        ...state.followState,
+        followers: state.followState.followers.filter(f => f !== username)
+      }
+    }))
+  },
+
+  // Voice chat actions
+  joinVoiceChat: () => {
+    set(state => ({
+      voiceChat: { ...state.voiceChat, isActive: true }
+    }))
+  },
+
+  leaveVoiceChat: () => {
+    set(state => ({
+      voiceChat: { ...state.voiceChat, isActive: false, isMuted: false }
+    }))
+  },
+
+  setMuted: (isMuted: boolean) => {
+    set(state => ({
+      voiceChat: { ...state.voiceChat, isMuted }
+    }))
+  },
+
+  addVoiceParticipant: (participant: VoiceParticipant) => {
+    set(state => ({
+      voiceChat: {
+        ...state.voiceChat,
+        participants: [...state.voiceChat.participants.filter(p => p.username !== participant.username), participant]
+      }
+    }))
+  },
+
+  removeVoiceParticipant: (username: string) => {
+    set(state => ({
+      voiceChat: {
+        ...state.voiceChat,
+        participants: state.voiceChat.participants.filter(p => p.username !== username)
+      }
+    }))
+  },
+
+  updateVoiceParticipant: (username: string, updates: Partial<VoiceParticipant>) => {
+    set(state => ({
+      voiceChat: {
+        ...state.voiceChat,
+        participants: state.voiceChat.participants.map(p =>
+          p.username === username ? { ...p, ...updates } : p
+        )
+      }
+    }))
+  },
+
+  // Collaboration getters
+  getRemoteCursorsForTab: (tabId: string) => {
+    const { connectedUsers } = get()
+    return connectedUsers
+      .filter(u => u.cursor && u.cursor.tabId === tabId)
+      .map(u => u.cursor!)
+  },
+
+  getRemoteSelectionsForTab: (tabId: string) => {
+    const { connectedUsers } = get()
+    return connectedUsers
+      .filter(u => u.selection && u.selection.tabId === tabId)
+      .map(u => u.selection!)
   }
 }))

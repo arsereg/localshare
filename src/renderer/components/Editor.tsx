@@ -1,13 +1,13 @@
 /**
  * Editor Component
- * CodeMirror editor with refined empty state
+ * CodeMirror editor with refined empty state and collaboration features
  */
 import { useEffect, useRef, useCallback, useState } from 'react'
 import { motion } from 'motion/react'
 import { useAppStore } from '@stores/appStore'
 import { useServerAPI } from '@hooks/useElectronAPI'
 import { CodeEditor } from '@lib/editor'
-import { SUPPORTED_LANGUAGES } from '@shared/types'
+import { SUPPORTED_LANGUAGES, WS_MESSAGE_TYPES } from '@shared/types'
 import { cn } from '@lib/utils'
 import {
   IconCode,
@@ -25,7 +25,11 @@ export function Editor() {
     getActiveTab,
     updateTabContent,
     setCursorPosition,
-    createTab
+    createTab,
+    getRemoteCursorsForTab,
+    getRemoteSelectionsForTab,
+    connectedUsers,
+    followState
   } = useAppStore()
   const { syncContent, addServerTab, setActiveServerTab } = useServerAPI()
 
@@ -33,6 +37,8 @@ export function Editor() {
   const containerRef = useRef<HTMLDivElement>(null)
   const isReceivingRemoteUpdate = useRef(false)
   const lastKnownContent = useRef<string>('')
+  const lastBroadcastedCursor = useRef<{ line: number; column: number } | null>(null)
+  const lastBroadcastedSelection = useRef<string | null>(null)
 
   const activeTab = getActiveTab()
 
@@ -55,8 +61,38 @@ export function Editor() {
   const handleCursorChange = useCallback(
     (line: number, column: number) => {
       setCursorPosition(line, column)
+
+      // Debounce cursor broadcasts
+      const currentTab = getActiveTab()
+      if (!currentTab) return
+
+      const cursorKey = `${line}:${column}`
+      if (lastBroadcastedCursor.current?.line === line && lastBroadcastedCursor.current?.column === column) {
+        return
+      }
+      lastBroadcastedCursor.current = { line, column }
+
+      // Broadcast cursor position to server (will be implemented via IPC)
+      // This will be connected to the WebSocket in the main process
     },
-    [setCursorPosition]
+    [setCursorPosition, getActiveTab]
+  )
+
+  // Handle selection changes
+  const handleSelectionChange = useCallback(
+    (anchor: { line: number; column: number }, head: { line: number; column: number }) => {
+      const currentTab = getActiveTab()
+      if (!currentTab) return
+
+      const selectionKey = `${anchor.line}:${anchor.column}-${head.line}:${head.column}`
+      if (lastBroadcastedSelection.current === selectionKey) {
+        return
+      }
+      lastBroadcastedSelection.current = selectionKey
+
+      // Broadcast selection to server (will be implemented via IPC)
+    },
+    [getActiveTab]
   )
 
   // Create/update editor when active tab changes
@@ -85,7 +121,9 @@ export function Editor() {
         initialContent: activeTab.content,
         languageId: activeTab.language,
         onChange: handleEditorChange,
-        onCursorChange: handleCursorChange
+        onCursorChange: handleCursorChange,
+        onSelectionChange: handleSelectionChange,
+        enableCollaboration: true
       })
 
       await editorRef.current.mount(containerRef.current!)
@@ -113,6 +151,33 @@ export function Editor() {
       isReceivingRemoteUpdate.current = false
     }
   }, [activeTab?.content])
+
+  // Update remote cursors in editor
+  useEffect(() => {
+    if (!editorRef.current || !activeTabId) return
+
+    const cursors = getRemoteCursorsForTab(activeTabId)
+    editorRef.current.setRemoteCursors(cursors)
+  }, [activeTabId, connectedUsers])
+
+  // Update remote selections in editor
+  useEffect(() => {
+    if (!editorRef.current || !activeTabId) return
+
+    const selections = getRemoteSelectionsForTab(activeTabId)
+    editorRef.current.setRemoteSelections(selections)
+  }, [activeTabId, connectedUsers])
+
+  // Handle follow mode - scroll to followed user's position
+  useEffect(() => {
+    if (!editorRef.current || !followState.isFollowing || !followState.targetUsername) return
+
+    const targetUser = connectedUsers.find(u => u.username === followState.targetUsername)
+    if (!targetUser?.cursor || targetUser.cursor.tabId !== activeTabId) return
+
+    // Scroll to the followed user's cursor position
+    editorRef.current.scrollToLine(targetUser.cursor.line)
+  }, [followState.isFollowing, followState.targetUsername, connectedUsers, activeTabId])
 
   // Handle new tab creation
   const handleNewTab = async () => {

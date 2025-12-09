@@ -59,6 +59,18 @@ export class CollaborationServer {
   // Callback for when client count changes
   private onClientCountChange: ((count: number) => void) | null = null
 
+  // Callback for when a user joins
+  private onUserJoin: ((user: { username: string; color: string }) => void) | null = null
+
+  // Callback for when a user leaves
+  private onUserLeave: ((username: string) => void) | null = null
+
+  // Callback for cursor updates
+  private onCursorUpdate: ((data: { username: string; color: string; tabId: string; line: number; column: number }) => void) | null = null
+
+  // Callback for selection updates
+  private onSelectionUpdate: ((data: { username: string; color: string; tabId: string; anchor: { line: number; column: number }; head: { line: number; column: number } }) => void) | null = null
+
   // User colors for cursor display
   private readonly userColors = [
     '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4',
@@ -220,6 +232,7 @@ export class CollaborationServer {
       ws.on('close', () => {
         const client = this.clients.get(ws)
         const wasAuthenticated = client?.isAuthenticated
+        const username = client?.username
         if (wasAuthenticated) {
           // Notify others of user leaving
           this.broadcast({
@@ -229,6 +242,11 @@ export class CollaborationServer {
         }
         this.clients.delete(ws)
         console.log('Client disconnected')
+
+        // Notify main app of user leave
+        if (wasAuthenticated && username && this.onUserLeave) {
+          this.onUserLeave(username)
+        }
 
         // Notify main app of client count change
         if (wasAuthenticated) {
@@ -294,8 +312,132 @@ export class CollaborationServer {
             type: WS_MESSAGE_TYPES.CURSOR_UPDATE,
             username: client.username,
             color: client.color,
-            cursor: message.cursor
+            tabId: message.tabId,
+            line: message.line,
+            column: message.column,
+            timestamp: Date.now()
           }, ws)
+          // Notify main app of cursor update
+          if (this.onCursorUpdate) {
+            this.onCursorUpdate({
+              username: client.username,
+              color: client.color,
+              tabId: message.tabId,
+              line: message.line,
+              column: message.column
+            })
+          }
+        }
+        break
+
+      case WS_MESSAGE_TYPES.SELECTION_UPDATE:
+        if (client.isAuthenticated) {
+          this.broadcast({
+            type: WS_MESSAGE_TYPES.SELECTION_UPDATE,
+            username: client.username,
+            color: client.color,
+            tabId: message.tabId,
+            anchor: message.anchor,
+            head: message.head,
+            timestamp: Date.now()
+          }, ws)
+          // Notify main app of selection update
+          if (this.onSelectionUpdate) {
+            this.onSelectionUpdate({
+              username: client.username,
+              color: client.color,
+              tabId: message.tabId,
+              anchor: message.anchor,
+              head: message.head
+            })
+          }
+        }
+        break
+
+      case WS_MESSAGE_TYPES.VIEWPORT_UPDATE:
+        if (client.isAuthenticated) {
+          this.broadcast({
+            type: WS_MESSAGE_TYPES.VIEWPORT_UPDATE,
+            username: client.username,
+            tabId: message.tabId,
+            scrollTop: message.scrollTop,
+            scrollLeft: message.scrollLeft,
+            visibleLines: message.visibleLines
+          }, ws)
+        }
+        break
+
+      case WS_MESSAGE_TYPES.FOLLOW_REQUEST:
+        if (client.isAuthenticated) {
+          // Notify the target user that someone is following them
+          this.clients.forEach((targetClient, targetWs) => {
+            if (targetClient.username === message.targetUsername && targetWs.readyState === WebSocket.OPEN) {
+              targetWs.send(JSON.stringify({
+                type: WS_MESSAGE_TYPES.FOLLOW_REQUEST,
+                follower: client.username
+              }))
+            }
+          })
+        }
+        break
+
+      case WS_MESSAGE_TYPES.FOLLOW_STOP:
+        if (client.isAuthenticated) {
+          this.clients.forEach((targetClient, targetWs) => {
+            if (targetClient.username === message.targetUsername && targetWs.readyState === WebSocket.OPEN) {
+              targetWs.send(JSON.stringify({
+                type: WS_MESSAGE_TYPES.FOLLOW_STOP,
+                follower: client.username
+              }))
+            }
+          })
+        }
+        break
+
+      // Voice chat signaling
+      case WS_MESSAGE_TYPES.VOICE_JOIN:
+        if (client.isAuthenticated) {
+          this.broadcast({
+            type: WS_MESSAGE_TYPES.VOICE_JOIN,
+            username: client.username,
+            color: client.color
+          }, ws)
+        }
+        break
+
+      case WS_MESSAGE_TYPES.VOICE_LEAVE:
+        if (client.isAuthenticated) {
+          this.broadcast({
+            type: WS_MESSAGE_TYPES.VOICE_LEAVE,
+            username: client.username
+          }, ws)
+        }
+        break
+
+      case WS_MESSAGE_TYPES.VOICE_MUTE:
+        if (client.isAuthenticated) {
+          this.broadcast({
+            type: WS_MESSAGE_TYPES.VOICE_MUTE,
+            username: client.username,
+            isMuted: message.isMuted
+          }, ws)
+        }
+        break
+
+      case WS_MESSAGE_TYPES.VOICE_OFFER:
+      case WS_MESSAGE_TYPES.VOICE_ANSWER:
+      case WS_MESSAGE_TYPES.VOICE_ICE_CANDIDATE:
+        if (client.isAuthenticated && message.targetUsername) {
+          // Forward WebRTC signaling to specific user
+          this.clients.forEach((targetClient, targetWs) => {
+            if (targetClient.username === message.targetUsername && targetWs.readyState === WebSocket.OPEN) {
+              targetWs.send(JSON.stringify({
+                type: message.type,
+                fromUsername: client.username,
+                ...message
+              }))
+            }
+          })
         }
         break
     }
@@ -347,6 +489,11 @@ export class CollaborationServer {
       }, ws)
 
       console.log(`User ${username} authenticated`)
+
+      // Notify main app of user join
+      if (this.onUserJoin) {
+        this.onUserJoin({ username: client.username, color: client.color })
+      }
 
       // Notify main app of client count change
       this.notifyClientCountChange()
@@ -514,6 +661,34 @@ export class CollaborationServer {
    */
   setOnClientCountChange(callback: (count: number) => void): void {
     this.onClientCountChange = callback
+  }
+
+  /**
+   * Set callback for when a user joins
+   */
+  setOnUserJoin(callback: (user: { username: string; color: string }) => void): void {
+    this.onUserJoin = callback
+  }
+
+  /**
+   * Set callback for when a user leaves
+   */
+  setOnUserLeave(callback: (username: string) => void): void {
+    this.onUserLeave = callback
+  }
+
+  /**
+   * Set callback for cursor updates
+   */
+  setOnCursorUpdate(callback: (data: { username: string; color: string; tabId: string; line: number; column: number }) => void): void {
+    this.onCursorUpdate = callback
+  }
+
+  /**
+   * Set callback for selection updates
+   */
+  setOnSelectionUpdate(callback: (data: { username: string; color: string; tabId: string; anchor: { line: number; column: number }; head: { line: number; column: number } }) => void): void {
+    this.onSelectionUpdate = callback
   }
 
   /**
@@ -687,6 +862,8 @@ export class CollaborationServer {
     let activeTabId = null;
     let isUpdating = false;
     let currentUsername = '';
+    let remoteCursors = new Map(); // username -> { line, column, color, element }
+    let lastCursorPos = { line: 0, column: 0 };
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -838,6 +1015,22 @@ export class CollaborationServer {
           case 'user:leave':
             console.log('User left:', message.username);
             showNotification(\`\${message.username} left\`);
+            // Remove their cursor
+            removeRemoteCursor(message.username);
+            break;
+
+          case 'cursor:update':
+            // Another user moved their cursor
+            if (message.username !== currentUsername && message.tabId === activeTabId) {
+              updateRemoteCursor(message.username, message.color, message.line, message.column);
+            }
+            break;
+
+          case 'selection:update':
+            // Another user changed their selection
+            if (message.username !== currentUsername && message.tabId === activeTabId) {
+              updateRemoteSelection(message.username, message.color, message.anchor, message.head);
+            }
             break;
 
           case 'auth:failed':
@@ -886,11 +1079,6 @@ export class CollaborationServer {
       const lines = editorTextarea.value.split('\\n');
       lineNumbers.innerHTML = lines.map((_, i) => \`<span>\${i + 1}</span>\`).join('');
     }
-
-    editorTextarea.addEventListener('scroll', () => {
-      const lineNumbers = document.getElementById('line-numbers');
-      lineNumbers.scrollTop = editorTextarea.scrollTop;
-    });
 
     // Initialize line numbers
     updateLineNumbers();
@@ -948,6 +1136,140 @@ export class CollaborationServer {
       editorTextarea.placeholder = 'Start typing or wait for content to sync...';
       editorTextarea.classList.remove('disabled');
     }
+
+    // Cursor position tracking
+    function getTextareaCursorPosition() {
+      const text = editorTextarea.value;
+      const cursorPos = editorTextarea.selectionStart;
+      const lines = text.substring(0, cursorPos).split('\\n');
+      return {
+        line: lines.length,
+        column: lines[lines.length - 1].length + 1
+      };
+    }
+
+    function sendCursorUpdate() {
+      if (!ws || ws.readyState !== WebSocket.OPEN || !activeTabId) return;
+
+      const pos = getTextareaCursorPosition();
+      if (pos.line !== lastCursorPos.line || pos.column !== lastCursorPos.column) {
+        lastCursorPos = pos;
+        ws.send(JSON.stringify({
+          type: 'cursor:update',
+          tabId: activeTabId,
+          line: pos.line,
+          column: pos.column
+        }));
+      }
+    }
+
+    function sendSelectionUpdate() {
+      if (!ws || ws.readyState !== WebSocket.OPEN || !activeTabId) return;
+
+      const text = editorTextarea.value;
+      const start = editorTextarea.selectionStart;
+      const end = editorTextarea.selectionEnd;
+
+      if (start === end) return; // No selection
+
+      const beforeStart = text.substring(0, start).split('\\n');
+      const beforeEnd = text.substring(0, end).split('\\n');
+
+      const anchor = {
+        line: beforeStart.length,
+        column: beforeStart[beforeStart.length - 1].length + 1
+      };
+      const head = {
+        line: beforeEnd.length,
+        column: beforeEnd[beforeEnd.length - 1].length + 1
+      };
+
+      ws.send(JSON.stringify({
+        type: 'selection:update',
+        tabId: activeTabId,
+        anchor,
+        head
+      }));
+    }
+
+    // Track cursor movement
+    editorTextarea.addEventListener('click', sendCursorUpdate);
+    editorTextarea.addEventListener('keyup', (e) => {
+      // Send cursor update on navigation keys
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'].includes(e.key)) {
+        sendCursorUpdate();
+      }
+    });
+    editorTextarea.addEventListener('input', () => {
+      // Send cursor update after typing (cursor moves as you type)
+      sendCursorUpdate();
+    });
+    editorTextarea.addEventListener('select', sendSelectionUpdate);
+    editorTextarea.addEventListener('mouseup', () => {
+      sendCursorUpdate();
+      if (editorTextarea.selectionStart !== editorTextarea.selectionEnd) {
+        sendSelectionUpdate();
+      }
+    });
+
+    // Remote cursor rendering
+    function updateRemoteCursor(username, color, line, column) {
+      let cursorData = remoteCursors.get(username);
+
+      if (!cursorData) {
+        // Create cursor element
+        const cursorEl = document.createElement('div');
+        cursorEl.className = 'remote-cursor';
+        cursorEl.innerHTML = \`
+          <div class="remote-cursor-line" style="background: \${color}"></div>
+          <div class="remote-cursor-label" style="background: \${color}">\${username}</div>
+        \`;
+        document.getElementById('editor-wrapper').appendChild(cursorEl);
+        cursorData = { element: cursorEl, line, column, color };
+        remoteCursors.set(username, cursorData);
+      }
+
+      cursorData.line = line;
+      cursorData.column = column;
+
+      // Position the cursor
+      positionRemoteCursor(cursorData);
+    }
+
+    function positionRemoteCursor(cursorData) {
+      const lineHeight = 22.1; // Approximate line height
+      const charWidth = 7.8; // Approximate character width for monospace
+      const paddingTop = 20;
+      const paddingLeft = 68; // Account for line numbers
+
+      const top = paddingTop + (cursorData.line - 1) * lineHeight - editorTextarea.scrollTop;
+      const left = paddingLeft + (cursorData.column - 1) * charWidth - editorTextarea.scrollLeft;
+
+      cursorData.element.style.top = top + 'px';
+      cursorData.element.style.left = left + 'px';
+      cursorData.element.style.display = (top >= 0 && top < editorTextarea.offsetHeight) ? 'block' : 'none';
+    }
+
+    function removeRemoteCursor(username) {
+      const cursorData = remoteCursors.get(username);
+      if (cursorData && cursorData.element) {
+        cursorData.element.remove();
+      }
+      remoteCursors.delete(username);
+    }
+
+    function updateRemoteSelection(username, color, anchor, head) {
+      // For simplicity, we'll just update the cursor position to the head of the selection
+      // Full selection highlighting would require more complex overlay rendering
+      updateRemoteCursor(username, color, head.line, head.column);
+    }
+
+    // Update cursor positions on scroll
+    editorTextarea.addEventListener('scroll', () => {
+      const lineNumbers = document.getElementById('line-numbers');
+      lineNumbers.scrollTop = editorTextarea.scrollTop;
+      remoteCursors.forEach(positionRemoteCursor);
+    });
 
     // Actions dropdown functionality
     const actionsBtn = document.getElementById('actions-btn');
@@ -1442,6 +1764,38 @@ body {
   animation: slide-in 0.2s ease;
   z-index: 1000;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* Remote cursor styles */
+.remote-cursor {
+  position: absolute;
+  pointer-events: none;
+  z-index: 50;
+  transition: top 0.05s ease, left 0.05s ease;
+}
+
+.remote-cursor-line {
+  width: 2px;
+  height: 20px;
+  border-radius: 1px;
+}
+
+.remote-cursor-label {
+  position: absolute;
+  top: -18px;
+  left: 0;
+  padding: 2px 6px;
+  border-radius: 4px 4px 4px 0;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--bg-base);
+  white-space: nowrap;
+  animation: cursor-fade-in 0.15s ease;
+}
+
+@keyframes cursor-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes slide-in {

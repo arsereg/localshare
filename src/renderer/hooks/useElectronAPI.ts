@@ -4,7 +4,7 @@
 import { useEffect, useCallback } from 'react'
 import { useAppStore } from '@stores/appStore'
 import type { ElectronAPI } from '../../preload/index'
-import { ProjectFile, ServerStatus } from '@shared/types'
+import { ProjectFile, ServerStatus, CursorData, SelectionData } from '@shared/types'
 
 // Type declaration for window.electronAPI
 declare global {
@@ -24,7 +24,10 @@ export function useServerAPI() {
     removeConnectedUser,
     updateTabContent,
     getActiveTab,
-    activeTabId
+    activeTabId,
+    updateRemoteCursor,
+    updateRemoteSelection,
+    clearRemotePresence
   } = useAppStore()
 
   // Subscribe to server status changes
@@ -56,6 +59,7 @@ export function useServerAPI() {
     })
 
     const unsubDisconnect = window.electronAPI.clients.onDisconnected((username) => {
+      clearRemotePresence(username)
       removeConnectedUser(username)
     })
 
@@ -63,7 +67,41 @@ export function useServerAPI() {
       unsubConnect()
       unsubDisconnect()
     }
-  }, [addConnectedUser, removeConnectedUser])
+  }, [addConnectedUser, removeConnectedUser, clearRemotePresence])
+
+  // Subscribe to cursor updates from guests
+  useEffect(() => {
+    const unsubscribe = window.electronAPI.clients.onCursorUpdate((data) => {
+      const cursorData: CursorData = {
+        username: data.username,
+        color: data.color,
+        tabId: data.tabId,
+        line: data.line,
+        column: data.column,
+        timestamp: Date.now()
+      }
+      updateRemoteCursor(cursorData)
+    })
+
+    return unsubscribe
+  }, [updateRemoteCursor])
+
+  // Subscribe to selection updates from guests
+  useEffect(() => {
+    const unsubscribe = window.electronAPI.clients.onSelectionUpdate((data) => {
+      const selectionData: SelectionData = {
+        username: data.username,
+        color: data.color,
+        tabId: data.tabId,
+        anchor: data.anchor,
+        head: data.head,
+        timestamp: Date.now()
+      }
+      updateRemoteSelection(selectionData)
+    })
+
+    return unsubscribe
+  }, [updateRemoteSelection])
 
   const syncContent = useCallback(async (tabId: string, content: string, filename: string) => {
     return window.electronAPI.server.syncContent({ tabId, content, filename })
