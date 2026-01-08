@@ -306,6 +306,14 @@ export class CollaborationServer {
         }
         break
 
+      case WS_MESSAGE_TYPES.SYNC_REQUEST:
+        // Client requesting full state sync
+        if (client.isAuthenticated) {
+          console.log(`[Server] Client ${client.username} requested full sync`)
+          this.sendFullSyncToClient(ws)
+        }
+        break
+
       case WS_MESSAGE_TYPES.CURSOR_UPDATE:
         if (client.isAuthenticated) {
           this.broadcast({
@@ -534,6 +542,47 @@ export class CollaborationServer {
     })
   }
 
+  /**
+   * Send full state sync to a specific client
+   */
+  private sendFullSyncToClient(ws: WebSocket): void {
+    const state = Y.encodeStateAsUpdate(this.ydoc)
+    const tabs = Array.from(this.sharedTabs.entries()).map(([id, tab]) => ({
+      id,
+      filename: tab.filename,
+      content: tab.content
+    }))
+    console.log('[Server] Sending full sync to client. Tabs:', tabs.length)
+    ws.send(JSON.stringify({
+      type: WS_MESSAGE_TYPES.SYNC_FULL,
+      state: Array.from(state),
+      users: this.getAuthenticatedUsers(),
+      tabs: tabs,
+      activeTabId: this.activeTabId
+    }))
+  }
+
+  /**
+   * Broadcast full state sync to all connected guests
+   * Call this when significant state changes occur (e.g., after host loads new project)
+   */
+  broadcastFullSync(): void {
+    const state = Y.encodeStateAsUpdate(this.ydoc)
+    const tabs = Array.from(this.sharedTabs.entries()).map(([id, tab]) => ({
+      id,
+      filename: tab.filename,
+      content: tab.content
+    }))
+    console.log('[Server] Broadcasting full sync to all clients. Tabs:', tabs.length)
+    this.broadcast({
+      type: WS_MESSAGE_TYPES.SYNC_FULL,
+      state: Array.from(state),
+      users: this.getAuthenticatedUsers(),
+      tabs: tabs,
+      activeTabId: this.activeTabId
+    })
+  }
+
   getStatus(): ServerStatus {
     let connectedClients = 0
     this.clients.forEach((client) => {
@@ -617,6 +666,28 @@ export class CollaborationServer {
         filename
       })
     }
+  }
+
+  /**
+   * Replace all tabs atomically (clears existing and adds new ones)
+   * Used when loading a new project to ensure clean state
+   */
+  replaceAllTabs(tabs: Array<{ id: string; filename: string; content: string }>, activeTabId: string | null): void {
+    console.log('[Server] replaceAllTabs called with', tabs.length, 'tabs')
+
+    // Clear existing tabs
+    this.sharedTabs.clear()
+
+    // Add new tabs
+    for (const tab of tabs) {
+      this.sharedTabs.set(tab.id, { content: tab.content, filename: tab.filename })
+    }
+
+    // Set active tab
+    this.activeTabId = activeTabId
+
+    // Broadcast full sync to all guests
+    this.broadcastFullSync()
   }
 
   /**
@@ -879,6 +950,14 @@ export class CollaborationServer {
               </svg>
               <span>Copy content</span>
             </button>
+            <button class="action-item" id="action-sync">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <polyline points="1 20 1 14 7 14"></polyline>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+              </svg>
+              <span>Sync with host</span>
+            </button>
           </div>
         </div>
       </div>
@@ -1043,9 +1122,18 @@ export class CollaborationServer {
             syncStatus.textContent = 'Connected';
             syncStatus.classList.add('synced');
 
-            // Initialize tabs from server
+            // Clear any stale state from previous sessions
+            tabs.clear();
+            activeTabId = null;
+            remoteCursors.forEach((cursorData) => {
+              if (cursorData.element) cursorData.element.remove();
+              if (cursorData.selectionElement) cursorData.selectionElement.remove();
+            });
+            remoteCursors.clear();
+
+            // Initialize tabs from server (this is now the authoritative state)
             if (message.tabs && message.tabs.length > 0) {
-              console.log('[Guest] Received', message.tabs.length, 'tabs');
+              console.log('[Guest] Received', message.tabs.length, 'tabs (full sync)');
               message.tabs.forEach(tab => {
                 tabs.set(tab.id, { content: tab.content, filename: tab.filename });
               });
@@ -1068,6 +1156,49 @@ export class CollaborationServer {
             if (message.users && message.users.length > 0) {
               updateUsersDisplay(message.users);
             }
+            break;
+
+          case 'sync:full':
+            // Full state sync from server - replace all local state with server state
+            console.log('[Guest] Received full sync from server');
+
+            // Clear all existing state
+            tabs.clear();
+            activeTabId = null;
+            remoteCursors.forEach((cursorData) => {
+              if (cursorData.element) cursorData.element.remove();
+              if (cursorData.selectionElement) cursorData.selectionElement.remove();
+            });
+            remoteCursors.clear();
+
+            // Load tabs from server
+            if (message.tabs && message.tabs.length > 0) {
+              console.log('[Guest] Full sync: received', message.tabs.length, 'tabs');
+              message.tabs.forEach(tab => {
+                tabs.set(tab.id, { content: tab.content, filename: tab.filename });
+              });
+              renderTabs();
+              enableEditor();
+
+              // Set active tab
+              if (message.activeTabId && tabs.has(message.activeTabId)) {
+                setActiveTab(message.activeTabId);
+              } else if (message.tabs.length > 0) {
+                setActiveTab(message.tabs[0].id);
+              }
+            } else {
+              // No tabs - disable editor
+              disableEditor();
+              renderTabs();
+            }
+            updateLineNumbers();
+
+            // Update users
+            if (message.users && message.users.length > 0) {
+              updateUsersDisplay(message.users);
+            }
+
+            showNotification('Synced with host');
             break;
 
           case 'sync:update':
@@ -1274,6 +1405,14 @@ export class CollaborationServer {
       notification.textContent = message;
       document.body.appendChild(notification);
       setTimeout(() => notification.remove(), 3000);
+    }
+
+    // Request full sync from server (useful for recovering from inconsistencies)
+    function requestFullSync() {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        console.log('[Guest] Requesting full sync from server');
+        ws.send(JSON.stringify({ type: 'sync:request' }));
+      }
     }
 
     function disableEditor() {
@@ -1535,6 +1674,7 @@ export class CollaborationServer {
     const actionsMenu = document.getElementById('actions-menu');
     const actionSave = document.getElementById('action-save');
     const actionCopy = document.getElementById('action-copy');
+    const actionSync = document.getElementById('action-sync');
     const actionFeedback = document.getElementById('action-feedback');
 
     actionsBtn.addEventListener('click', (e) => {
@@ -1594,6 +1734,13 @@ export class CollaborationServer {
       }
 
       actionsMenu.classList.add('hidden');
+    });
+
+    // Sync with host
+    actionSync.addEventListener('click', () => {
+      requestFullSync();
+      actionsMenu.classList.add('hidden');
+      showFeedback('Syncing...');
     });
   </script>
 </body>

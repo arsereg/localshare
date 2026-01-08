@@ -92,6 +92,7 @@ export const IPC_CHANNELS = {
   SERVER_GET_CONNECTION_URL: 'server:get-connection-url',
   SERVER_SYNC_CONTENT: 'server:sync-content',
   SERVER_CONTENT_UPDATE: 'server:content-update',
+  SERVER_BROADCAST_FULL_SYNC: 'server:broadcast-full-sync',
 
   // Credential management
   CREDENTIALS_CREATE: 'credentials:create',
@@ -116,6 +117,8 @@ export const WS_MESSAGE_TYPES = {
   AUTH_FAILED: 'auth:failed',
   SYNC_INIT: 'sync:init',
   SYNC_UPDATE: 'sync:update',
+  SYNC_FULL: 'sync:full',  // Full state sync (host can push, client can request)
+  SYNC_REQUEST: 'sync:request',  // Client requests full sync
   CURSOR_UPDATE: 'cursor:update',
   SELECTION_UPDATE: 'selection:update',
   USER_JOIN: 'user:join',

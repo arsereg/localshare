@@ -39,6 +39,12 @@ const electronAPI = {
     syncContent: (data: { tabId: string; content: string; filename: string }): Promise<{ success: boolean; error?: string }> =>
       ipcRenderer.invoke(IPC_CHANNELS.SERVER_SYNC_CONTENT, data),
 
+    broadcastFullSync: (): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke(IPC_CHANNELS.SERVER_BROADCAST_FULL_SYNC),
+
+    replaceAllTabs: (data: { tabs: Array<{ id: string; filename: string; content: string }>, activeTabId: string | null }): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('server:replace-all-tabs', data),
+
     setActiveTab: (tabId: string): Promise<{ success: boolean; error?: string }> =>
       ipcRenderer.invoke('server:set-active-tab', tabId),
 

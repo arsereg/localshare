@@ -416,10 +416,15 @@ function loadProject(project: ProjectFile): void {
 }
 
 /**
- * Handle tabs update
+ * Handle tabs update - sync all tabs with the collaboration server
+ * This is called when loading a project or when bulk tab operations occur
  */
-function handleTabsUpdate(tabs: DocumentTab[]): void {
-  // Could be used for syncing with collaboration server
+async function handleTabsUpdate(tabs: DocumentTab[]): Promise<void> {
+  // Replace all tabs on the server atomically and broadcast to all guests
+  await window.electronAPI.server.replaceAllTabs({
+    tabs: tabs.map(t => ({ id: t.id, filename: t.filename, content: t.content })),
+    activeTabId: tabs.length > 0 ? tabs[0].id : null
+  })
 }
 
 /**

@@ -278,6 +278,18 @@ ipcMain.handle(IPC_CHANNELS.SERVER_SYNC_CONTENT, (_event, data: { tabId: string;
   return { success: true }
 })
 
+ipcMain.handle(IPC_CHANNELS.SERVER_BROADCAST_FULL_SYNC, () => {
+  if (!collaborationServer) return { success: false, error: 'Server not running' }
+  collaborationServer.broadcastFullSync()
+  return { success: true }
+})
+
+ipcMain.handle('server:replace-all-tabs', (_event, data: { tabs: Array<{ id: string; filename: string; content: string }>, activeTabId: string | null }) => {
+  if (!collaborationServer) return { success: false, error: 'Server not running' }
+  collaborationServer.replaceAllTabs(data.tabs, data.activeTabId)
+  return { success: true }
+})
+
 ipcMain.handle('server:set-active-tab', (_event, tabId: string) => {
   if (!collaborationServer) return { success: false, error: 'Server not running' }
   collaborationServer.setActiveTab(tabId)
